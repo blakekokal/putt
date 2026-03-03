@@ -557,34 +557,47 @@ function draw() {
   
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.font = `bold ${Math.round(W*0.035)}px Barlow Condensed`;
+  const aimIsMobile = W < 500;
+  const aimTextScale = aimIsMobile ? 2.0 : 1.0;
+  ctx.font = `bold ${Math.round(W * 0.035 * aimTextScale)}px Barlow Condensed`;
   ctx.fillStyle = '#b0d0ff';
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
   ctx.shadowBlur = 4;
   ctx.fillText(aimDotText, aim.x + Math.max(drawDotR, 10) + 6, aim.y);
 
-  // Distance & Angle labels near ball
+  // Distance & Angle labels — placed ABOVE the ball so thumb doesn't cover them
   const angleLabel = fromFall + '°';
   const ft = Math.floor(distInches / 12);
   const ins = Math.round(distInches % 12);
   const distLabel = `${ft}' ${ins}"`;
 
-  const labelOffX = ball.x > cx ? Math.max(drawBallR, 12)+10 : -(Math.max(drawBallR, 12)+10);
+  // 2x larger text on mobile
+  const isMobile = W < 500;
+  const textScale = isMobile ? 2.0 : 1.0;
+  const angleFontSize = Math.round(W * 0.035 * textScale);
+  const distFontSize  = Math.round(W * 0.035 * textScale);
+
+  // Position labels above the ball
+  const lineGap = angleFontSize * 1.25;
+  const aboveBallY = ball.y - drawBallR - 12;
+
+  const labelOffX = ball.x > cx ? Math.max(drawBallR, 12) + 10 : -(Math.max(drawBallR, 12) + 10);
   const labelAlign = ball.x > cx ? 'left' : 'right';
-  
+
   ctx.textAlign = labelAlign;
   ctx.shadowBlur = 4;
-  
-  ctx.textBaseline = 'bottom';
-  ctx.font = `bold ${Math.round(W*0.035)}px Barlow Condensed`;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(angleLabel, ball.x + labelOffX, ball.y - 2);
 
-  ctx.textBaseline = 'top';
-  ctx.font = `normal ${Math.round(W*0.030)}px Barlow Condensed`;
-  ctx.fillStyle = '#b0d0ff'; 
-  ctx.fillText(distLabel, ball.x + labelOffX, ball.y + 4);
-  
+  // Degrees line (closer to ball)
+  ctx.textBaseline = 'bottom';
+  ctx.font = `bold ${angleFontSize}px Barlow Condensed`;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(angleLabel, ball.x + labelOffX, aboveBallY);
+
+  // Distance line (above degrees)
+  ctx.font = `bold ${distFontSize}px Barlow Condensed`;
+  ctx.fillStyle = '#b0d0ff';
+  ctx.fillText(distLabel, ball.x + labelOffX, aboveBallY - lineGap);
+
   ctx.shadowBlur = 0;
 }
 
