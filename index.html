@@ -256,9 +256,16 @@ document.querySelectorAll('.range-btn').forEach(btn => {
 });
 
 function resize(rangeChanged) {
+  // Recalculate max width dynamically in case the phone is rotated
+  const currentMaxW = Math.min(window.innerWidth * 0.95, 540);
+  
   const rect = wrap.getBoundingClientRect();
-  W = rect.width || maxW;
-  H = W * (IMG_H / IMG_W);
+  W = rect.width || currentMaxW;
+  
+  // Dynamically calculate height to fill 92% of the screen's vertical space,
+  // capping the aspect ratio so it doesn't look stretched on ultra-tall screens.
+  H = Math.min(window.innerHeight * 0.92, W * 2.15);
+  
   wrap.style.height = H + 'px'; 
   canvas.width = W; 
   canvas.height = H;
@@ -267,6 +274,8 @@ function resize(rangeChanged) {
   cy = HOLE_FY * H;
 
   const r = RANGES[currentRange];
+  
+  // Keep the visual scaling relative to the available space
   const maxScreenRadius = Math.min(W, H) * 0.40;
   distPxPerInch = maxScreenRadius / (r.max * 12); 
 
