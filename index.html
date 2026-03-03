@@ -27,7 +27,7 @@
     display: flex; flex-direction: column; gap: 16px;
   }
 
-  .oc-row { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .oc-row { display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .oc-label-row { display: flex; align-items: center; gap: 8px; }
   .oc-label {
     color: #fff; font-size: 0.95rem; font-weight: bold; letter-spacing: 0.04em;
@@ -41,15 +41,16 @@
     -webkit-appearance: none; appearance: none;
     width: 85%; height: 4px; background: rgba(255,255,255,0.3);
     border-radius: 2px; outline: none; cursor: pointer; transition: 0.2s;
+    margin-top: 18px;
   }
   .oc-row input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 6px; height: 22px; border-radius: 3px;
     background: #fff; cursor: pointer;
     box-shadow: 0 1px 6px rgba(0,0,0,0.6);
   }
   .oc-row input[type=range]::-moz-range-thumb {
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 6px; height: 22px; border-radius: 3px;
     background: #fff; cursor: pointer; border: none;
     box-shadow: 0 1px 6px rgba(0,0,0,0.6);
   }
