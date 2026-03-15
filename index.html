@@ -91,6 +91,8 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
 .scrub-row{display:flex;align-items:center;gap:4px;padding:5px 8px;
   background:var(--surface);border-top:0.5px solid var(--border);flex-shrink:0;}
+/* when compare hidden, panelA is the bottom panel */
+body.single-panel #panelA .scrub-row{padding-bottom:calc(5px + env(safe-area-inset-bottom, 0px));}
 .play-btn{width:28px;height:28px;border:0.5px solid var(--border2);border-radius:50%;
   background:transparent;cursor:pointer;display:flex;align-items:center;
   justify-content:center;font-size:11px;color:var(--text);flex-shrink:0;}
@@ -102,7 +104,7 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 .time-lbl{font-size:10px;color:var(--text2);min-width:56px;text-align:right;
   font-variant-numeric:tabular-nums;flex-shrink:0;}
 
-.sync-bar{display:flex;align-items:center;gap:6px;padding:5px 8px;
+.sync-bar{display:flex;align-items:center;gap:6px;padding:5px 8px;padding-bottom:calc(5px + env(safe-area-inset-bottom, 0px));
   background:var(--surface);border-top:0.5px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
 .sync-status{font-size:11px;color:var(--text2);flex:1;min-width:80px;}
 </style>
@@ -112,10 +114,10 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
   <div class="toolbar">
     <div class="tool-group">
-      <button class="tb-btn active" id="tLine"   onclick="setTool('line')">Line</button>
-      <button class="tb-btn"        id="tAngle"  onclick="setTool('angle')">Angle</button>
-      <button class="tb-btn"        id="tCircle" onclick="setTool('circle')">Circle</button>
-      <button class="tb-btn"        id="tFree"   onclick="setTool('free')">Draw</button>
+      <button class="tb-btn" id="tLine"   onclick="setTool('line')">Line</button>
+      <button class="tb-btn" id="tAngle"  onclick="setTool('angle')">Angle</button>
+      <button class="tb-btn" id="tCircle" onclick="setTool('circle')">Circle</button>
+      <button class="tb-btn" id="tFree"   onclick="setTool('free')">Draw</button>
     </div>
     <div class="sep"></div>
     <div class="sl-wrap">
@@ -214,7 +216,7 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
 <script>
 /* ── state ── */
-let tool='line', strokeColor='#ff3b30', strokeW=2;
+let tool=null, strokeColor='#ff3b30', strokeW=2;
 let drawings={A:[],B:[]};
 let drawing=false, activeId=null, startX=0, startY=0, freePts=[];
 let syncMode=false, syncOffsets={A:0,B:0}, syncSet={A:false,B:false};
@@ -236,6 +238,7 @@ function toggleCompare(){
   const btn=document.getElementById('compareBtn');
   btn.textContent=compareVisible?'− Compare':'+ Compare';
   btn.className='tb-btn '+(compareVisible?'red':'green');
+  document.body.classList.toggle('single-panel', !compareVisible);
   if(compareVisible) setTimeout(()=>{resizeCanvas('B');},60);
 }
 
@@ -347,8 +350,14 @@ function drawOv(){
   const va=document.getElementById('vidA');
   if(!va.src||va.readyState<2) return;
   ctx.clearRect(0,0,oc.width,oc.height);
+  // Compute the letterboxed rect that object-fit:contain produces
+  const cw=oc.width, ch=oc.height;
+  const vw=va.videoWidth||cw, vh=va.videoHeight||ch;
+  const scale=Math.min(cw/vw, ch/vh);
+  const rw=vw*scale, rh=vh*scale;
+  const rx=(cw-rw)/2, ry=(ch-rh)/2;
   ctx.globalAlpha=overlayOp;
-  ctx.drawImage(va,0,0,oc.width,oc.height);
+  ctx.drawImage(va, rx, ry, rw, rh);
   ctx.globalAlpha=1;
 }
 function setOverlayOp(v){overlayOp=v/100;document.getElementById('opVal').textContent=v+'%';if(overlayOn)drawOv();}
@@ -516,6 +525,7 @@ function setupPanel(id){
 
 /* ── draw logic ── */
 function _sdCoords(id,x,y){
+  if(!tool) return;
   drawing=true; activeId=id; startX=x; startY=y;
   if(tool==='free') freePts=[[x,y]];
   if(tool==='angle'){
@@ -574,7 +584,6 @@ function _drawShapes(ctx,id){
     ctx.strokeStyle=d.color; ctx.lineWidth=d.w; ctx.lineCap='round'; ctx.lineJoin='round';
     if(d.tool==='line'){
       ctx.beginPath();ctx.moveTo(d.x1,d.y1);ctx.lineTo(d.x2,d.y2);ctx.stroke();
-      _arrow(ctx,d.x1,d.y1,d.x2,d.y2,d.color,d.w);
     } else if(d.tool==='circle'){
       ctx.beginPath();ctx.arc(d.cx,d.cy,d.r,0,Math.PI*2);ctx.stroke();
     } else if(d.tool==='free'){
@@ -624,6 +633,7 @@ function fmt(t){
 /* ── init ── */
 setupPanel('A');
 setupPanel('B');
+document.body.classList.add('single-panel');
 
 window.addEventListener('resize',()=>{
   ['A','B'].forEach(id=>{
@@ -633,782 +643,6 @@ window.addEventListener('resize',()=>{
   if(overlayOn) resizeOv();
 });
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Golf Analyzer">
-<meta name="theme-color" content="#1a1a1a">
-<title>Golf Swing Analyzer</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #1a1a1a;
-    --surface: #242424;
-    --surface2: #2e2e2e;
-    --border: rgba(255,255,255,0.1);
-    --border2: rgba(255,255,255,0.18);
-    --text: #f0f0f0;
-    --text2: #999;
-    --accent: #4a9eff;
-    --accent-bg: rgba(74,158,255,0.15);
-    --danger: #ff453a;
-    --radius: 8px;
-    --radius-sm: 6px;
-  }
-
-  html, body {
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .app {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
-  }
-
-  /* ── Toolbar ── */
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    background: var(--surface);
-    border-bottom: 0.5px solid var(--border);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    z-index: 10;
-  }
-
-  .tool-group { display: flex; gap: 3px; }
-
-  .tb-btn {
-    padding: 6px 10px;
-    border: 0.5px solid var(--border2);
-    background: transparent;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    color: var(--text);
-    white-space: nowrap;
-    transition: background 0.12s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .tb-btn:active { background: var(--surface2); transform: scale(0.97); }
-  .tb-btn.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
-  .tb-btn.danger { color: var(--danger); }
-
-  .sep { width: 0.5px; height: 20px; background: var(--border2); flex-shrink: 0; margin: 0 2px; }
-
-  .color-pick {
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    border: 2px solid var(--border2);
-    cursor: pointer;
-    padding: 0;
-    background: none;
-    flex-shrink: 0;
-  }
-
-  .sw-label {
-    font-size: 12px;
-    color: var(--text2);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-  }
-  .sw-label input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
-
-  .stroke-w-wrap { display: flex; align-items: center; gap: 4px; }
-  .stroke-w-wrap label { font-size: 11px; color: var(--text2); }
-  .stroke-w-wrap input[type=range] { width: 50px; accent-color: var(--accent); }
-
-  .overlay-wrap { display: flex; align-items: center; gap: 4px; }
-  .overlay-wrap label { font-size: 11px; color: var(--text2); }
-  .overlay-wrap input[type=range] { width: 50px; accent-color: var(--accent); }
-  .overlay-wrap span { font-size: 11px; color: var(--text2); min-width: 28px; }
-
-  /* ── Panels ── */
-  .panels {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    gap: 0;
-  }
-
-  @media (orientation: portrait) {
-    .panels { flex-direction: column; }
-    .panel { flex: 1; border-bottom: 0.5px solid var(--border); }
-    .panel:last-child { border-bottom: none; }
-  }
-
-  @media (orientation: landscape) {
-    .panels { flex-direction: row; }
-    .panel { flex: 1; border-right: 0.5px solid var(--border); }
-    .panel:last-child { border-right: none; }
-  }
-
-  .panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    min-width: 0;
-    position: relative;
-  }
-
-  .panel-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    background: var(--surface);
-    border-bottom: 0.5px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .panel-label { font-size: 11px; font-weight: 600; color: var(--text2); flex: 1; letter-spacing: 0.05em; text-transform: uppercase; }
-
-  .panel-badge {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 20px;
-    background: var(--surface2);
-    color: var(--text2);
-    border: 0.5px solid var(--border);
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .overlay-toggle {
-    font-size: 11px;
-    color: var(--text2);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-  }
-  .overlay-toggle input { accent-color: var(--accent); }
-
-  /* ── Video area ── */
-  .vid-wrap {
-    flex: 1;
-    position: relative;
-    background: #0a0a0a;
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .vid-wrap video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-  }
-
-  .draw-canvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    touch-action: none;
-    display: none;
-  }
-
-  .overlay-canvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    display: none;
-  }
-
-  /* ── Drop zone ── */
-  .drop-zone {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    background: var(--bg);
-  }
-
-  .drop-icon { font-size: 32px; }
-  .drop-text { font-size: 12px; color: var(--text2); text-align: center; }
-
-  .drop-btn {
-    font-size: 12px;
-    padding: 7px 18px;
-    border: 0.5px solid var(--border2);
-    border-radius: var(--radius);
-    background: var(--surface2);
-    color: var(--text);
-    cursor: pointer;
-    font-weight: 500;
-  }
-
-  /* ── Scrub row ── */
-  .scrub-row {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 8px;
-    background: var(--surface);
-    border-top: 0.5px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .play-btn {
-    width: 28px; height: 28px;
-    border: 0.5px solid var(--border2);
-    border-radius: 50%;
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: var(--text);
-    flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .play-btn:active { background: var(--surface2); }
-
-  .frame-btn {
-    font-size: 10px;
-    padding: 5px 8px;
-    border: 0.5px solid var(--border2);
-    background: transparent;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    color: var(--text);
-    flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .frame-btn:active { background: var(--surface2); }
-
-  .scrub-range {
-    flex: 1;
-    min-width: 0;
-    accent-color: var(--accent);
-    height: 20px;
-    cursor: pointer;
-  }
-
-  .time-lbl {
-    font-size: 10px;
-    color: var(--text2);
-    min-width: 56px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum";
-    flex-shrink: 0;
-  }
-
-  /* ── Sync bar ── */
-  .sync-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: var(--surface);
-    border-top: 0.5px solid var(--border);
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-
-  .sync-status {
-    font-size: 11px;
-    color: var(--text2);
-    flex: 1;
-    min-width: 80px;
-  }
-
-  /* ── Angle label text on canvas ── */
-  canvas { display: block; }
-</style>
-</head>
-<body>
-
-<div class="app">
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div class="tool-group">
-      <button class="tb-btn active" id="tLine"   onclick="setTool('line')">Line</button>
-      <button class="tb-btn"        id="tAngle"  onclick="setTool('angle')">Angle</button>
-      <button class="tb-btn"        id="tCircle" onclick="setTool('circle')">Circle</button>
-      <button class="tb-btn"        id="tFree"   onclick="setTool('free')">Draw</button>
-    </div>
-    <div class="sep"></div>
-    <div class="stroke-w-wrap">
-      <label>W</label>
-      <input type="range" min="1" max="6" value="2" step="1" id="strokeRange" oninput="strokeW=+this.value">
-    </div>
-    <div class="sep"></div>
-    <input type="color" class="color-pick" id="colorPick" value="#ff3b30" onchange="strokeColor=this.value">
-    <div class="sep"></div>
-    <button class="tb-btn" onclick="undoLast()">Undo</button>
-    <button class="tb-btn danger" onclick="clearAll()">Clear</button>
-    <div class="sep"></div>
-    <label class="sw-label">
-      <input type="checkbox" id="syncChk" onchange="syncMode=this.checked;updateSyncBar()"> Sync
-    </label>
-    <div class="sep"></div>
-    <div class="overlay-wrap">
-      <label>Overlay</label>
-      <input type="range" min="0" max="100" value="50" step="1" id="overlaySlider" oninput="setOverlayOp(+this.value)">
-      <span id="opVal">50%</span>
-    </div>
-  </div>
-
-  <!-- Video panels -->
-  <div class="panels">
-
-    <!-- Panel A -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-label">A</span>
-        <span class="panel-badge" id="badgeA">no video</span>
-      </div>
-      <div class="vid-wrap" id="wrapA">
-        <div class="drop-zone" id="dzA" onclick="triggerLoad('A')">
-          <div class="drop-icon">🎬</div>
-          <div class="drop-text">Tap to load video</div>
-          <button class="drop-btn">Choose file</button>
-        </div>
-        <video id="vidA" preload="metadata" playsinline
-          onloadedmetadata="onMeta('A')"
-          ontimeupdate="onTime('A')"
-          onended="onEnded('A')">
-        </video>
-        <canvas class="draw-canvas" id="canvasA"></canvas>
-      </div>
-      <div class="scrub-row">
-        <button class="play-btn" id="playA" onclick="togglePlay('A')">▶</button>
-        <button class="frame-btn" onclick="stepFrame('A',-1)">◀</button>
-        <button class="frame-btn" onclick="stepFrame('A',1)">▶</button>
-        <input type="range" class="scrub-range" id="scrubA" min="0" max="1000" value="0" step="1" oninput="onScrub('A',+this.value)">
-        <span class="time-lbl" id="timeA">0:00.000</span>
-      </div>
-    </div>
-
-    <!-- Panel B -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-label">B</span>
-        <span class="panel-badge" id="badgeB">no video</span>
-        <label class="overlay-toggle">
-          <input type="checkbox" id="overlayChk" onchange="toggleOverlay(this.checked)"> Overlay A
-        </label>
-      </div>
-      <div class="vid-wrap" id="wrapB">
-        <div class="drop-zone" id="dzB" onclick="triggerLoad('B')">
-          <div class="drop-icon">🎬</div>
-          <div class="drop-text">Tap to load video</div>
-          <button class="drop-btn">Choose file</button>
-        </div>
-        <video id="vidB" preload="metadata" playsinline
-          onloadedmetadata="onMeta('B')"
-          ontimeupdate="onTime('B')"
-          onended="onEnded('B')">
-        </video>
-        <canvas class="overlay-canvas" id="overlayCanvas"></canvas>
-        <canvas class="draw-canvas" id="canvasB"></canvas>
-      </div>
-      <div class="scrub-row">
-        <button class="play-btn" id="playB" onclick="togglePlay('B')">▶</button>
-        <button class="frame-btn" onclick="stepFrame('B',-1)">◀</button>
-        <button class="frame-btn" onclick="stepFrame('B',1)">▶</button>
-        <input type="range" class="scrub-range" id="scrubB" min="0" max="1000" value="0" step="1" oninput="onScrub('B',+this.value)">
-        <span class="time-lbl" id="timeB">0:00.000</span>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Sync bar -->
-  <div class="sync-bar">
-    <span class="sync-status" id="syncStatus">Sync off — scrub independently</span>
-    <button class="tb-btn" onclick="setSyncPt('A')">Set A</button>
-    <button class="tb-btn" onclick="setSyncPt('B')">Set B</button>
-    <button class="tb-btn" onclick="resetSync()">Reset</button>
-  </div>
-
-</div>
-
-<input type="file" id="fileIn" accept="video/*" style="display:none">
-
-<script>
-/* ── State ── */
-let tool = 'line';
-let strokeColor = '#ff3b30';
-let strokeW = 2;
-let drawings = { A: [], B: [] };
-let drawing = false, activeId = null;
-let startX = 0, startY = 0, freePts = [];
-let syncMode = false;
-let syncOffsets = { A: 0, B: 0 };
-let syncSet = { A: false, B: false };
-let overlayOn = false, overlayOp = 0.5;
-let loadTarget = 'A';
-
-/* ── Tools ── */
-function setTool(t) {
-  tool = t;
-  ['Line','Angle','Circle','Free'].forEach(n =>
-    document.getElementById('t'+n).classList.toggle('active', t === n.toLowerCase())
-  );
-}
-
-/* ── File loading ── */
-const fileIn = document.getElementById('fileIn');
-fileIn.addEventListener('change', () => {
-  if (fileIn.files[0]) loadVideoFile(fileIn.files[0], loadTarget);
-});
-
-function triggerLoad(id) {
-  loadTarget = id;
-  fileIn.value = '';
-  fileIn.click();
-}
-
-function loadVideoFile(file, id) {
-  const vid = document.getElementById('vid' + id);
-  if (vid.src) URL.revokeObjectURL(vid.src);
-  vid.src = URL.createObjectURL(file);
-  vid.style.display = 'block';
-  document.getElementById('dz' + id).style.display = 'none';
-  document.getElementById('canvas' + id).style.display = 'block';
-  const n = file.name;
-  document.getElementById('badge' + id).textContent = n.length > 18 ? n.slice(0,16) + '…' : n;
-}
-
-/* ── Video events ── */
-function onMeta(id) {
-  const vid = document.getElementById('vid' + id);
-  document.getElementById('scrub' + id).max = Math.round(vid.duration * 1000);
-  resizeCanvas(id);
-  if (overlayOn && id === 'A') resizeOverlay();
-}
-
-function onTime(id) {
-  const vid = document.getElementById('vid' + id);
-  const t = vid.currentTime;
-  document.getElementById('scrub' + id).value = Math.round(t * 1000);
-  document.getElementById('time' + id).textContent = fmt(t);
-  if (overlayOn && id === 'A') drawOverlay();
-  if (syncMode && !vid.paused) syncOther(id, t);
-}
-
-function onEnded(id) {
-  document.getElementById('play' + id).textContent = '▶';
-}
-
-function syncOther(id, t) {
-  const other = id === 'A' ? 'B' : 'A';
-  const ov = document.getElementById('vid' + other);
-  if (!ov.src || ov.readyState < 1) return;
-  const expected = t - syncOffsets[id] + syncOffsets[other];
-  if (Math.abs(ov.currentTime - expected) > 0.05)
-    ov.currentTime = Math.max(0, Math.min(ov.duration, expected));
-}
-
-/* ── Scrub & step ── */
-function onScrub(id, val) {
-  const vid = document.getElementById('vid' + id);
-  if (!vid.src) return;
-  vid.currentTime = val / 1000;
-  document.getElementById('time' + id).textContent = fmt(val / 1000);
-  if (overlayOn) setTimeout(drawOverlay, 30);
-  if (syncMode) {
-    const other = id === 'A' ? 'B' : 'A';
-    const ov = document.getElementById('vid' + other);
-    if (ov.src) {
-      const t2 = val / 1000 - syncOffsets[id] + syncOffsets[other];
-      ov.currentTime = Math.max(0, Math.min(ov.duration || 9999, t2));
-      document.getElementById('scrub' + other).value = Math.round(ov.currentTime * 1000);
-      document.getElementById('time' + other).textContent = fmt(ov.currentTime);
-    }
-  }
-}
-
-function stepFrame(id, dir) {
-  const vid = document.getElementById('vid' + id);
-  if (!vid.src) return;
-  vid.currentTime = Math.max(0, Math.min(vid.duration, vid.currentTime + dir * (1 / 30)));
-  if (overlayOn) setTimeout(drawOverlay, 50);
-}
-
-/* ── Play/pause ── */
-function togglePlay(id) {
-  const vid = document.getElementById('vid' + id);
-  if (!vid.src) return;
-  const other = id === 'A' ? 'B' : 'A';
-  if (vid.paused) {
-    vid.play();
-    document.getElementById('play' + id).textContent = '⏸';
-    if (syncMode) {
-      const ov = document.getElementById('vid' + other);
-      if (ov.src) { ov.play(); document.getElementById('play' + other).textContent = '⏸'; }
-    }
-  } else {
-    vid.pause();
-    document.getElementById('play' + id).textContent = '▶';
-    if (syncMode) {
-      const ov = document.getElementById('vid' + other);
-      if (ov.src) { ov.pause(); document.getElementById('play' + other).textContent = '▶'; }
-    }
-  }
-}
-
-/* ── Sync ── */
-function setSyncPt(id) {
-  syncOffsets[id] = document.getElementById('vid' + id).currentTime;
-  syncSet[id] = true;
-  updateSyncBar();
-}
-function resetSync() {
-  syncOffsets = { A: 0, B: 0 };
-  syncSet = { A: false, B: false };
-  updateSyncBar();
-}
-function updateSyncBar() {
-  const el = document.getElementById('syncStatus');
-  if (!syncSet.A && !syncSet.B) {
-    el.textContent = syncMode ? 'Sync on — set A & B points' : 'Sync off — scrub independently';
-  } else {
-    el.textContent = `A @ ${fmt(syncOffsets.A)}  •  B @ ${fmt(syncOffsets.B)}`;
-  }
-}
-
-/* ── Overlay ── */
-function toggleOverlay(on) {
-  overlayOn = on;
-  const oc = document.getElementById('overlayCanvas');
-  oc.style.display = on ? 'block' : 'none';
-  if (on) { resizeOverlay(); setTimeout(drawOverlay, 50); }
-}
-
-function resizeOverlay() {
-  const wrap = document.getElementById('wrapB');
-  const oc = document.getElementById('overlayCanvas');
-  oc.width = wrap.clientWidth;
-  oc.height = wrap.clientHeight;
-}
-
-function drawOverlay() {
-  const oc = document.getElementById('overlayCanvas');
-  const ctx = oc.getContext('2d');
-  const vidA = document.getElementById('vidA');
-  if (!vidA.src || vidA.readyState < 2) return;
-  ctx.clearRect(0, 0, oc.width, oc.height);
-  ctx.globalAlpha = overlayOp;
-  ctx.drawImage(vidA, 0, 0, oc.width, oc.height);
-  ctx.globalAlpha = 1;
-}
-
-function setOverlayOp(v) {
-  overlayOp = v / 100;
-  document.getElementById('opVal').textContent = v + '%';
-  if (overlayOn) drawOverlay();
-}
-
-/* ── Canvas drawing ── */
-function resizeCanvas(id) {
-  const wrap = document.getElementById('wrap' + id);
-  const c = document.getElementById('canvas' + id);
-  c.width = wrap.clientWidth;
-  c.height = wrap.clientHeight;
-  redraw(id);
-}
-
-function getPos(c, e) {
-  const r = c.getBoundingClientRect();
-  const src = e.touches ? e.touches[0] : e;
-  return [
-    (src.clientX - r.left) * (c.width / r.width),
-    (src.clientY - r.top) * (c.height / r.height)
-  ];
-}
-
-function setupCanvas(id) {
-  const c = document.getElementById('canvas' + id);
-  c.addEventListener('mousedown',  e => sd(e, id));
-  c.addEventListener('mousemove',  e => sm(e, id));
-  c.addEventListener('mouseup',    e => ed(e, id));
-  c.addEventListener('mouseleave', e => ed(e, id));
-  c.addEventListener('touchstart', e => { e.preventDefault(); sd(e, id); }, { passive: false });
-  c.addEventListener('touchmove',  e => { e.preventDefault(); sm(e, id); }, { passive: false });
-  c.addEventListener('touchend',   e => { e.preventDefault(); ed(e, id); }, { passive: false });
-}
-
-function sd(e, id) {
-  const c = document.getElementById('canvas' + id);
-  const [x, y] = getPos(c, e);
-  drawing = true; activeId = id; startX = x; startY = y;
-  if (tool === 'free') freePts = [[x, y]];
-  if (tool === 'angle') {
-    // If last shape is an in-progress angle, add point to it
-    const last = drawings[id][drawings[id].length - 1];
-    if (last && last.tool === 'angle' && !last.done) {
-      last.pts.push([x, y]);
-      if (last.pts.length >= 3) last.done = true;
-      redraw(id);
-      drawing = false;
-      return;
-    }
-    drawings[id].push({ tool: 'angle', pts: [[x, y]], color: strokeColor, w: strokeW, done: false });
-  }
-}
-
-function sm(e, id) {
-  if (!drawing || activeId !== id) return;
-  const c = document.getElementById('canvas' + id);
-  const [x, y] = getPos(c, e);
-  redraw(id);
-  const ctx = c.getContext('2d');
-  ctx.strokeStyle = strokeColor; ctx.lineWidth = strokeW; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (tool === 'line') {
-    ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
-  } else if (tool === 'circle') {
-    const r = Math.hypot(x - startX, y - startY);
-    ctx.beginPath(); ctx.arc(startX, startY, r, 0, Math.PI * 2); ctx.stroke();
-  } else if (tool === 'free') {
-    freePts.push([x, y]);
-    ctx.beginPath(); ctx.moveTo(freePts[0][0], freePts[0][1]);
-    freePts.forEach(p => ctx.lineTo(p[0], p[1])); ctx.stroke();
-  } else if (tool === 'angle') {
-    const last = drawings[id][drawings[id].length - 1];
-    if (last && last.tool === 'angle' && !last.done) {
-      ctx.beginPath(); ctx.moveTo(last.pts[0][0], last.pts[0][1]); ctx.lineTo(x, y); ctx.stroke();
-    }
-  }
-}
-
-function ed(e, id) {
-  if (!drawing || activeId !== id) return;
-  const c = document.getElementById('canvas' + id);
-  const [x, y] = getPos(c, e);
-  drawing = false;
-  if (tool === 'line') {
-    drawings[id].push({ tool: 'line', x1: startX, y1: startY, x2: x, y2: y, color: strokeColor, w: strokeW });
-  } else if (tool === 'circle') {
-    drawings[id].push({ tool: 'circle', cx: startX, cy: startY, r: Math.hypot(x - startX, y - startY), color: strokeColor, w: strokeW });
-  } else if (tool === 'free') {
-    if (freePts.length > 1)
-      drawings[id].push({ tool: 'free', pts: [...freePts], color: strokeColor, w: strokeW });
-  }
-  redraw(id);
-}
-
-function redraw(id) {
-  const c = document.getElementById('canvas' + id);
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, c.width, c.height);
-  drawings[id].forEach(d => {
-    ctx.strokeStyle = d.color; ctx.lineWidth = d.w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    if (d.tool === 'line') {
-      ctx.beginPath(); ctx.moveTo(d.x1, d.y1); ctx.lineTo(d.x2, d.y2); ctx.stroke();
-      drawArrow(ctx, d.x1, d.y1, d.x2, d.y2, d.color, d.w);
-    } else if (d.tool === 'circle') {
-      ctx.beginPath(); ctx.arc(d.cx, d.cy, d.r, 0, Math.PI * 2); ctx.stroke();
-    } else if (d.tool === 'free') {
-      if (!d.pts.length) return;
-      ctx.beginPath(); ctx.moveTo(d.pts[0][0], d.pts[0][1]);
-      d.pts.forEach(p => ctx.lineTo(p[0], p[1])); ctx.stroke();
-    } else if (d.tool === 'angle') {
-      if (d.pts.length >= 2) {
-        ctx.beginPath(); ctx.moveTo(d.pts[0][0], d.pts[0][1]); ctx.lineTo(d.pts[1][0], d.pts[1][1]); ctx.stroke();
-      }
-      if (d.pts.length >= 3) {
-        ctx.beginPath(); ctx.moveTo(d.pts[1][0], d.pts[1][1]); ctx.lineTo(d.pts[2][0], d.pts[2][1]); ctx.stroke();
-        const ang = calcAngle(d.pts[0], d.pts[1], d.pts[2]);
-        const fs = Math.max(13, d.w * 4);
-        ctx.font = `600 ${fs}px -apple-system, sans-serif`;
-        // shadow for readability
-        ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 4;
-        ctx.fillStyle = d.color;
-        ctx.fillText(ang + '°', d.pts[1][0] + 8, d.pts[1][1] - 8);
-        ctx.shadowBlur = 0;
-      }
-    }
-  });
-}
-
-function drawArrow(ctx, x1, y1, x2, y2, color, w) {
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-  const size = 6 + w * 2;
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(x2, y2);
-  ctx.lineTo(x2 - size * Math.cos(angle - 0.42), y2 - size * Math.sin(angle - 0.42));
-  ctx.lineTo(x2 - size * Math.cos(angle + 0.42), y2 - size * Math.sin(angle + 0.42));
-  ctx.closePath(); ctx.fill();
-}
-
-function calcAngle(p0, p1, p2) {
-  const a = Math.atan2(p0[1] - p1[1], p0[0] - p1[0]);
-  const b = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
-  let deg = Math.abs((b - a) * 180 / Math.PI);
-  if (deg > 180) deg = 360 - deg;
-  return Math.round(deg);
-}
-
-function undoLast() {
-  ['A', 'B'].forEach(id => { drawings[id].pop(); redraw(id); });
-}
-
-function clearAll() {
-  drawings = { A: [], B: [] };
-  redraw('A'); redraw('B');
-}
-
-/* ── Helpers ── */
-function fmt(t) {
-  if (isNaN(t)) return '0:00.000';
-  const m = Math.floor(t / 60);
-  const s = Math.floor(t % 60);
-  const ms = Math.floor((t % 1) * 1000);
-  return `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
-}
-
-/* ── Init ── */
-setupCanvas('A');
-setupCanvas('B');
-
-window.addEventListener('resize', () => {
-  ['A', 'B'].forEach(id => {
-    const vid = document.getElementById('vid' + id);
-    if (vid.src) resizeCanvas(id);
-  });
-  if (overlayOn) resizeOverlay();
-});
-
-// Prevent scroll/zoom on touch
-document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 </script>
 </body>
 </html>
