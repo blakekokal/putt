@@ -3,646 +3,1093 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Golf Analyzer">
-<meta name="theme-color" content="#1a1a1a">
-<title>Golf Swing Analyzer</title>
+<title>PuttLab — Ball Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg:#1a1a1a;--surface:#242424;--surface2:#2e2e2e;
-  --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
-  --text:#f0f0f0;--text2:#999;
-  --accent:#4a9eff;--accent-bg:rgba(74,158,255,0.15);
-  --danger:#ff453a;--green:#30d158;--green-bg:rgba(48,209,88,0.12);
-  --radius:8px;--radius-sm:6px;
-}
-html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
-  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
-  user-select:none;-webkit-user-select:none;}
-.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;}
+  :root {
+    --bg: #0a0f0a;
+    --surface: #111811;
+    --surface2: #161e16;
+    --border: #1e2d1e;
+    --gold: #c9a84c;
+    --gold-dim: #7a6130;
+    --green: #2d5a27;
+    --green-bright: #4caf50;
+    --text: #e8ede8;
+    --text-dim: #7a8f7a;
+    --red: #d64444;
+    --blue: #4a9fd6;
+  }
 
-.toolbar{display:flex;align-items:center;gap:5px;padding:7px 8px;
-  background:var(--surface);border-bottom:0.5px solid var(--border);
-  flex-shrink:0;flex-wrap:wrap;z-index:10;}
-.tool-group{display:flex;gap:3px;}
-.tb-btn{padding:6px 10px;border:0.5px solid var(--border2);background:transparent;
-  border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;
-  color:var(--text);white-space:nowrap;}
-.tb-btn:active{opacity:0.65;}
-.tb-btn.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
-.tb-btn.danger{color:var(--danger);}
-.tb-btn.green{color:var(--green);border-color:var(--green);background:var(--green-bg);}
-.tb-btn.red{color:var(--danger);border-color:var(--danger);background:rgba(255,69,58,0.1);}
-.sep{width:0.5px;height:18px;background:var(--border2);flex-shrink:0;margin:0 1px;}
-.color-pick{width:22px;height:22px;border-radius:50%;border:2px solid var(--border2);cursor:pointer;padding:0;background:none;flex-shrink:0;}
-.sw-label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer;}
-.sw-label input{accent-color:var(--accent);width:14px;height:14px;}
-.sl-wrap{display:flex;align-items:center;gap:4px;}
-.sl-wrap label{font-size:11px;color:var(--text2);}
-.sl-wrap input[type=range]{accent-color:var(--accent);}
-.sl-wrap span{font-size:11px;color:var(--text2);min-width:28px;}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-.panels{display:flex;flex:1;min-height:0;}
-@media(orientation:portrait){
-  .panels{flex-direction:column;}
-  .panel{flex:1;border-bottom:0.5px solid var(--border);}
-  .panel:last-child{border-bottom:none;}
-}
-@media(orientation:landscape){
-  .panels{flex-direction:row;}
-  .panel{flex:1;border-right:0.5px solid var(--border);}
-  .panel:last-child{border-right:none;}
-}
-.panel{display:flex;flex-direction:column;min-height:0;min-width:0;}
-.panel-header{display:flex;align-items:center;gap:6px;padding:4px 8px;
-  background:var(--surface);border-bottom:0.5px solid var(--border);flex-shrink:0;}
-.panel-label{font-size:11px;font-weight:600;color:var(--text2);flex:1;letter-spacing:.05em;text-transform:uppercase;}
-.panel-badge{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--surface2);
-  color:var(--text2);border:0.5px solid var(--border);max-width:130px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ov-toggle{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer;}
-.ov-toggle input{accent-color:var(--accent);}
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-.vid-wrap{flex:1;position:relative;background:#0a0a0a;overflow:hidden;min-height:0;}
-.vid-wrap video{position:absolute;top:0;left:0;width:100%;height:100%;
-  object-fit:contain;display:block;pointer-events:none;transform-origin:0 0;will-change:transform;}
-.draw-canvas{position:absolute;top:0;left:0;width:100%;height:100%;
-  touch-action:none;display:none;}
-.ov-canvas{position:absolute;top:0;left:0;width:100%;height:100%;
-  pointer-events:none;display:none;}
+  /* grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.5;
+  }
 
-.zoom-pill{position:absolute;top:6px;right:6px;font-size:11px;font-weight:600;
-  color:#fff;background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:20px;
-  pointer-events:none;opacity:0;transition:opacity .3s;z-index:5;}
-.zoom-pill.show{opacity:1;}
-.zoom-reset-btn{position:absolute;bottom:8px;right:8px;font-size:11px;font-weight:500;
-  color:var(--accent);background:rgba(0,0,0,0.65);border:0.5px solid var(--accent);
-  padding:4px 10px;border-radius:20px;cursor:pointer;display:none;z-index:5;}
+  header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
 
-.drop-zone{position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:8px;cursor:pointer;background:var(--bg);}
-.drop-icon{font-size:32px;}
-.drop-text{font-size:12px;color:var(--text2);}
-.drop-btn{font-size:12px;padding:7px 18px;border:0.5px solid var(--border2);
-  border-radius:var(--radius);background:var(--surface2);color:var(--text);font-weight:500;}
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: var(--gold);
+    letter-spacing: -0.02em;
+  }
 
-.scrub-row{display:flex;align-items:center;gap:4px;padding:5px 8px;
-  background:var(--surface);border-top:0.5px solid var(--border);flex-shrink:0;}
-/* when compare hidden, panelA is the bottom panel */
-body.single-panel #panelA .scrub-row{padding-bottom:calc(5px + env(safe-area-inset-bottom, 0px));}
-.play-btn{width:28px;height:28px;border:0.5px solid var(--border2);border-radius:50%;
-  background:transparent;cursor:pointer;display:flex;align-items:center;
-  justify-content:center;font-size:11px;color:var(--text);flex-shrink:0;}
-.play-btn:active{background:var(--surface2);}
-.frame-btn{font-size:10px;padding:5px 8px;border:0.5px solid var(--border2);
-  background:transparent;border-radius:var(--radius-sm);cursor:pointer;color:var(--text);flex-shrink:0;}
-.frame-btn:active{background:var(--surface2);}
-.scrub-range{flex:1;min-width:0;accent-color:var(--accent);cursor:pointer;}
-.time-lbl{font-size:10px;color:var(--text2);min-width:56px;text-align:right;
-  font-variant-numeric:tabular-nums;flex-shrink:0;}
+  header span {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
 
-.sync-bar{display:flex;align-items:center;gap:6px;padding:5px 8px;padding-bottom:calc(5px + env(safe-area-inset-bottom, 0px));
-  background:var(--surface);border-top:0.5px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.sync-status{font-size:11px;color:var(--text2);flex:1;min-width:80px;}
+  .container { padding: 24px; max-width: 900px; margin: 0 auto; }
+
+  /* Upload zone */
+  #upload-zone {
+    border: 1px dashed var(--gold-dim);
+    border-radius: 4px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    position: relative;
+  }
+  #upload-zone:hover, #upload-zone.drag-over {
+    border-color: var(--gold);
+    background: var(--surface2);
+  }
+  #upload-zone input { display: none; }
+
+  .upload-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 16px;
+    border: 1px solid var(--gold-dim);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .upload-icon svg { width: 24px; height: 24px; stroke: var(--gold); fill: none; }
+
+  .upload-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .upload-sub { font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.08em; line-height: 1.8; }
+
+  /* Tips */
+  .tips {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .tip strong { color: var(--gold); display: block; margin-bottom: 4px; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* Progress */
+  #progress-section { display: none; }
+  .progress-label { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 8px; letter-spacing: 0.1em; }
+  .progress-bar { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+  .progress-fill { height: 100%; background: var(--gold); transition: width 0.3s; width: 0%; }
+  .progress-status { font-size: 0.68rem; color: var(--text-dim); }
+
+  /* Video + canvas */
+  #analysis-section { display: none; }
+
+  .video-wrap {
+    position: relative;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  #preview-video { width: 100%; display: block; }
+  #overlay-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* Scrubber */
+  .scrubber-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .scrubber-row input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  .scrubber-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    background: var(--gold);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .frame-label { font-size: 0.68rem; color: var(--text-dim); white-space: nowrap; min-width: 90px; text-align: right; }
+
+  /* Playback buttons */
+  .playback-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    padding: 8px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .btn:hover { border-color: var(--gold); color: var(--gold); }
+  .btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+  .btn-primary { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 500; }
+  .btn-primary:hover { background: #e0ba60; }
+
+  /* Metrics grid */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 24px;
+  }
+  @media (min-width: 600px) { .metrics-grid { grid-template-columns: repeat(4, 1fr); } }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold);
+    opacity: 0.4;
+  }
+  .metric-card.highlight::before { opacity: 1; }
+  .metric-label { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+  .metric-value { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: var(--gold); line-height: 1; }
+  .metric-value.red { color: var(--red); }
+  .metric-value.green { color: var(--green-bright); }
+  .metric-unit { font-size: 0.65rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* Chart */
+  .chart-section { margin-top: 24px; }
+  .chart-title { font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    overflow-x: auto;
+  }
+  #speed-chart { width: 100%; height: 120px; display: block; }
+  #spin-chart { width: 100%; height: 120px; display: block; }
+
+  /* Timeline events */
+  .events-section { margin-top: 24px; }
+  .event-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+  }
+  .event-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .event-dot.bounce { background: var(--red); }
+  .event-dot.roll { background: var(--green-bright); }
+  .event-dot.impact { background: var(--gold); }
+  .event-time { color: var(--gold); min-width: 60px; font-size: 0.68rem; }
+  .event-desc { color: var(--text-dim); }
+
+  /* Hidden canvas for frame processing */
+  #proc-canvas { display: none; }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  .calibration-note {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+    margin-top: 16px;
+  }
+  .calibration-note strong { color: var(--gold); }
+
+  .no-ball-warning {
+    background: var(--surface);
+    border: 1px solid var(--red);
+    border-radius: 4px;
+    padding: 16px;
+    font-size: 0.72rem;
+    color: var(--red);
+    margin-top: 16px;
+    display: none;
+  }
+
+  .fps-badge {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
 </style>
 </head>
 <body>
-<div class="app">
 
-  <div class="toolbar">
-    <div class="tool-group">
-      <button class="tb-btn" id="tLine"   onclick="setTool('line')">Line</button>
-      <button class="tb-btn" id="tAngle"  onclick="setTool('angle')">Angle</button>
-      <button class="tb-btn" id="tCircle" onclick="setTool('circle')">Circle</button>
-      <button class="tb-btn" id="tFree"   onclick="setTool('free')">Draw</button>
+<header>
+  <h1>PuttLab</h1>
+  <span>Ball Flight Analysis</span>
+</header>
+
+<div class="container">
+
+  <!-- Upload -->
+  <div id="upload-zone">
+    <input type="file" id="file-input" accept="video/*">
+    <div class="upload-icon">
+      <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M15 10l4.553-2.069A1 1 0 0121 8.845v6.31a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
     </div>
-    <div class="sep"></div>
-    <div class="sl-wrap">
-      <label>W</label>
-      <input type="range" min="1" max="6" value="2" step="1" style="width:44px" oninput="strokeW=+this.value">
-    </div>
-    <div class="sep"></div>
-    <input type="color" class="color-pick" value="#ff3b30" onchange="strokeColor=this.value">
-    <div class="sep"></div>
-    <button class="tb-btn" onclick="undoLast()">Undo</button>
-    <button class="tb-btn danger" onclick="clearAll()">Clear</button>
-    <div class="sep"></div>
-    <button class="tb-btn green" id="compareBtn" onclick="toggleCompare()">+ Compare</button>
-    <div class="sep"></div>
-    <label class="sw-label"><input type="checkbox" id="syncChk" onchange="syncMode=this.checked;updateSyncBar()"> Sync</label>
-    <div class="sep" id="ovSep" style="display:none"></div>
-    <div class="sl-wrap" id="ovWrap" style="display:none">
-      <label>Overlay</label>
-      <input type="range" min="0" max="100" value="50" step="1" style="width:44px" oninput="setOverlayOp(+this.value)">
-      <span id="opVal">50%</span>
+    <div class="upload-title">Upload Slow-Mo Putt Video</div>
+    <div class="upload-sub">
+      Record at 240fps on iPhone → tap to upload<br>
+      Supports .MOV, .MP4 — any slow-mo file
     </div>
   </div>
 
-  <div class="panels" id="panels">
-
-    <!-- Panel A -->
-    <div class="panel" id="panelA">
-      <div class="panel-header">
-        <span class="panel-label">Video</span>
-        <span class="panel-badge" id="badgeA">no video</span>
-      </div>
-      <div class="vid-wrap" id="wrapA">
-        <div class="drop-zone" id="dzA" onclick="triggerLoad('A')">
-          <div class="drop-icon">🎬</div>
-          <div class="drop-text">Tap to load video</div>
-          <button class="drop-btn">Choose file</button>
-        </div>
-        <video id="vidA" preload="metadata" playsinline
-          onloadedmetadata="onMeta('A')" ontimeupdate="onTime('A')" onended="onEnded('A')"></video>
-        <canvas class="draw-canvas" id="canvasA"></canvas>
-        <div class="zoom-pill" id="zpA">1.0×</div>
-        <button class="zoom-reset-btn" id="zrA" onclick="resetZoom('A')">Reset zoom</button>
-      </div>
-      <div class="scrub-row">
-        <button class="play-btn" id="playA" onclick="togglePlay('A')">▶</button>
-        <button class="frame-btn" onclick="stepFrame('A',-1)">◀</button>
-        <button class="frame-btn" onclick="stepFrame('A',1)">▶</button>
-        <input type="range" class="scrub-range" id="scrubA" min="0" max="1000" value="0" step="1" oninput="onScrub('A',+this.value)">
-        <span class="time-lbl" id="timeA">0:00.000</span>
-      </div>
+  <div class="tips">
+    <div class="tip">
+      <strong>🎱 3-Dot Setup</strong>
+      Draw 3 Sharpie dots in a triangle on the ball (~120° apart). This lets the app track rotation precisely.
     </div>
-
-    <!-- Panel B (hidden by default) -->
-    <div class="panel" id="panelB" style="display:none">
-      <div class="panel-header">
-        <span class="panel-label">Compare</span>
-        <span class="panel-badge" id="badgeB">no video</span>
-        <label class="ov-toggle">
-          <input type="checkbox" id="overlayChk" onchange="toggleOverlay(this.checked)"> Overlay A
-        </label>
-      </div>
-      <div class="vid-wrap" id="wrapB">
-        <div class="drop-zone" id="dzB" onclick="triggerLoad('B')">
-          <div class="drop-icon">🎬</div>
-          <div class="drop-text">Tap to load video</div>
-          <button class="drop-btn">Choose file</button>
-        </div>
-        <video id="vidB" preload="metadata" playsinline
-          onloadedmetadata="onMeta('B')" ontimeupdate="onTime('B')" onended="onEnded('B')"></video>
-        <canvas class="ov-canvas" id="ovCanvas"></canvas>
-        <canvas class="draw-canvas" id="canvasB"></canvas>
-        <div class="zoom-pill" id="zpB">1.0×</div>
-        <button class="zoom-reset-btn" id="zrB" onclick="resetZoom('B')">Reset zoom</button>
-      </div>
-      <div class="scrub-row">
-        <button class="play-btn" id="playB" onclick="togglePlay('B')">▶</button>
-        <button class="frame-btn" onclick="stepFrame('B',-1)">◀</button>
-        <button class="frame-btn" onclick="stepFrame('B',1)">▶</button>
-        <input type="range" class="scrub-range" id="scrubB" min="0" max="1000" value="0" step="1" oninput="onScrub('B',+this.value)">
-        <span class="time-lbl" id="timeB">0:00.000</span>
-      </div>
+    <div class="tip">
+      <strong>📱 240fps Recording</strong>
+      Open Camera app → Slo-Mo → record your putt. AirDrop to iPad or upload directly from iPhone.
     </div>
-
+    <div class="tip">
+      <strong>🎯 Framing Tips</strong>
+      Camera perpendicular to the putt line. Ball should fill at least 5% of the frame. Good contrast helps.
+    </div>
   </div>
 
-  <div class="sync-bar" id="syncBar" style="display:none">
-    <span class="sync-status" id="syncStatus">Sync off</span>
-    <button class="tb-btn" onclick="setSyncPt('A')">Set A</button>
-    <button class="tb-btn" onclick="setSyncPt('B')">Set B</button>
-    <button class="tb-btn" onclick="resetSync()">Reset</button>
+  <!-- Progress -->
+  <div id="progress-section" style="margin-top:24px;">
+    <div class="progress-label">PROCESSING FRAMES</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-status" id="progress-status">Initializing...</div>
+  </div>
+
+  <!-- Analysis -->
+  <div id="analysis-section">
+    <hr class="section-divider">
+
+    <div class="video-wrap">
+      <video id="preview-video" playsinline webkit-playsinline muted></video>
+      <canvas id="overlay-canvas"></canvas>
+    </div>
+
+    <div class="scrubber-row">
+      <input type="range" id="frame-scrubber" min="0" value="0" step="1">
+      <div class="frame-label" id="frame-label">Frame 0 / 0</div>
+    </div>
+
+    <div class="playback-row">
+      <button class="btn" id="btn-prev">◀ Prev</button>
+      <button class="btn" id="btn-play">▶ Play</button>
+      <button class="btn" id="btn-next">Next ▶</button>
+      <button class="btn active" id="btn-025x">¼×</button>
+      <button class="btn" id="btn-05x">½×</button>
+      <button class="btn" id="btn-1x">1×</button>
+      <button class="btn btn-primary" id="btn-reanalyze" style="margin-left:auto;">↺ Re-analyze</button>
+    </div>
+
+    <div class="no-ball-warning" id="no-ball-warning">
+      ⚠ Ball not detected in enough frames. Try better lighting or ensure the ball is white against a darker background.
+    </div>
+
+    <div class="calibration-note">
+      <strong>Calibration:</strong> Ball diameter auto-detected as <span id="ball-diameter-px">—</span>px
+      = 1.68 inches. Speed calculated from pixel displacement × scale factor.
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-grid">
+      <div class="metric-card highlight">
+        <div class="metric-label">Launch Speed</div>
+        <div class="metric-value" id="m-speed">—</div>
+        <div class="metric-unit">mph at impact</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Peak Spin</div>
+        <div class="metric-value" id="m-spin">—</div>
+        <div class="metric-unit">RPM (topspin+)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Bounces</div>
+        <div class="metric-value" id="m-bounces">—</div>
+        <div class="metric-unit">detected events</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Skid Distance</div>
+        <div class="metric-value" id="m-skid">—</div>
+        <div class="metric-unit">frames before true roll</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Frames Captured</div>
+        <div class="metric-value" id="m-frames">—</div>
+        <div class="metric-unit">total video frames</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Detected FPS</div>
+        <div class="metric-value" id="m-fps">—</div>
+        <div class="metric-unit">frames per second</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Ball Detected</div>
+        <div class="metric-value" id="m-tracked">—</div>
+        <div class="metric-unit">frames with ball found</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Roll Quality</div>
+        <div class="metric-value" id="m-roll">—</div>
+        <div class="metric-unit">end-roll consistency</div>
+      </div>
+    </div>
+
+    <!-- Speed chart -->
+    <div class="chart-section">
+      <div class="chart-title">Ball Speed Over Time (mph)</div>
+      <div class="chart-wrap">
+        <canvas id="speed-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Spin chart -->
+    <div class="chart-section" style="margin-top:16px;">
+      <div class="chart-title">Spin Rate Over Time (RPM) — requires 3-dot marking</div>
+      <div class="chart-wrap">
+        <canvas id="spin-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Events timeline -->
+    <div class="events-section">
+      <div class="chart-title" style="margin-top:24px;">EVENT TIMELINE</div>
+      <div id="events-list"></div>
+    </div>
+
   </div>
 
 </div>
 
-<input type="file" id="fileIn" accept="video/*" style="display:none">
+<!-- Hidden processing canvas -->
+<canvas id="proc-canvas"></canvas>
 
 <script>
-/* ── state ── */
-let tool=null, strokeColor='#ff3b30', strokeW=2;
-let drawings={A:[],B:[]};
-let drawing=false, activeId=null, startX=0, startY=0, freePts=[];
-let syncMode=false, syncOffsets={A:0,B:0}, syncSet={A:false,B:false};
-let overlayOn=false, overlayOp=0.5;
-let loadTarget='A';
-let compareVisible=false;
+// ─── State ───────────────────────────────────────────────────────────────────
+let frames = [];        // {imageData, time, ballX, ballY, ballR, dotAngle}
+let videoFPS = 240;
+let ballDiameterPx = 0;
+let analysisResults = null;
+let playInterval = null;
+let currentFrame = 0;
+let playSpeed = 0.25;
 
-/* per-panel zoom */
-function mkZ(){ return {scale:1,ox:0,oy:0,pinching:false,lastD:0,lastMX:0,lastMY:0,panning:false,pStartX:0,pStartY:0,pOX:0,pOY:0}; }
-const Z={A:mkZ(), B:mkZ()};
+const GOLF_BALL_INCHES = 1.68;
 
-/* ── compare ── */
-function toggleCompare(){
-  compareVisible=!compareVisible;
-  document.getElementById('panelB').style.display=compareVisible?'':'none';
-  document.getElementById('syncBar').style.display=compareVisible?'':'none';
-  document.getElementById('ovSep').style.display=compareVisible?'':'none';
-  document.getElementById('ovWrap').style.display=compareVisible?'':'none';
-  const btn=document.getElementById('compareBtn');
-  btn.textContent=compareVisible?'− Compare':'+ Compare';
-  btn.className='tb-btn '+(compareVisible?'red':'green');
-  document.body.classList.toggle('single-panel', !compareVisible);
-  if(compareVisible) setTimeout(()=>{resizeCanvas('B');},60);
+// ─── Elements ────────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+const progressSection = document.getElementById('progress-section');
+const progressFill = document.getElementById('progress-fill');
+const progressStatus = document.getElementById('progress-status');
+const analysisSection = document.getElementById('analysis-section');
+const video = document.getElementById('preview-video');
+const overlayCanvas = document.getElementById('overlay-canvas');
+const overlayCtx = overlayCanvas.getContext('2d');
+const procCanvas = document.getElementById('proc-canvas');
+const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
+const scrubber = document.getElementById('frame-scrubber');
+const frameLabel = document.getElementById('frame-label');
+
+// ─── Upload handling ─────────────────────────────────────────────────────────
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+function handleFile(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.load();
+  video.addEventListener('loadedmetadata', () => startExtraction(), { once: true });
 }
 
-/* ── tools ── */
-function setTool(t){
-  tool=t;
-  ['Line','Angle','Circle','Free'].forEach(n=>document.getElementById('t'+n).classList.toggle('active',t===n.toLowerCase()));
+// ─── Frame extraction ─────────────────────────────────────────────────────────
+async function startExtraction() {
+  uploadZone.style.display = 'none';
+  progressSection.style.display = 'block';
+  frames = [];
+
+  // Detect FPS from video
+  const detectedFPS = video.webkitDecodedFrameCount !== undefined ? null : null;
+  // We'll use requestVideoFrameCallback for accurate frame capture
+  videoFPS = 240; // assume 240fps, recalculate from timestamps
+
+  procCanvas.width = Math.min(video.videoWidth, 640);
+  procCanvas.height = Math.round(procCanvas.width * (video.videoHeight / video.videoWidth));
+
+  const duration = video.duration;
+  progressStatus.textContent = `Video: ${video.videoWidth}×${video.videoHeight}, ${duration.toFixed(2)}s`;
+
+  await extractFrames(duration);
 }
 
-/* ── file ── */
-const fileIn=document.getElementById('fileIn');
-fileIn.addEventListener('change',()=>{if(fileIn.files[0]) loadVideoFile(fileIn.files[0],loadTarget);});
-function triggerLoad(id){loadTarget=id;fileIn.value='';fileIn.click();}
-function loadVideoFile(file,id){
-  const vid=document.getElementById('vid'+id);
-  if(vid.src) URL.revokeObjectURL(vid.src);
-  vid.src=URL.createObjectURL(file);
-  vid.style.display='block';
-  document.getElementById('dz'+id).style.display='none';
-  document.getElementById('canvas'+id).style.display='block';
-  const n=file.name;
-  document.getElementById('badge'+id).textContent=n.length>20?n.slice(0,18)+'…':n;
-}
+function extractFrames(duration) {
+  return new Promise(resolve => {
+    let lastTime = -1;
+    let frameCount = 0;
+    const maxFrames = 1500;
 
-/* ── video events ── */
-function onMeta(id){
-  const vid=document.getElementById('vid'+id);
-  document.getElementById('scrub'+id).max=Math.round(vid.duration*1000);
-  resizeCanvas(id);
-  if(overlayOn&&id==='A') resizeOv();
-}
-function onTime(id){
-  const vid=document.getElementById('vid'+id);
-  const t=vid.currentTime;
-  document.getElementById('scrub'+id).value=Math.round(t*1000);
-  document.getElementById('time'+id).textContent=fmt(t);
-  if(overlayOn&&id==='A') drawOv();
-  if(syncMode&&!vid.paused) syncOther(id,t);
-}
-function onEnded(id){document.getElementById('play'+id).textContent='▶';}
-function syncOther(id,t){
-  const o=id==='A'?'B':'A';
-  const ov=document.getElementById('vid'+o);
-  if(!ov.src||ov.readyState<1) return;
-  const exp=t-syncOffsets[id]+syncOffsets[o];
-  if(Math.abs(ov.currentTime-exp)>0.05) ov.currentTime=Math.max(0,Math.min(ov.duration,exp));
-}
+    function processFrame(now, meta) {
+      const t = meta.mediaTime;
+      if (t !== lastTime && t <= duration) {
+        lastTime = t;
+        procCtx.drawImage(video, 0, 0, procCanvas.width, procCanvas.height);
+        const imgData = procCtx.getImageData(0, 0, procCanvas.width, procCanvas.height);
+        frames.push({ imageData: imgData, time: t, ballX: -1, ballY: -1, ballR: 0, dotAngle: null });
+        frameCount++;
 
-/* ── scrub/play ── */
-function onScrub(id,val){
-  const vid=document.getElementById('vid'+id);
-  if(!vid.src) return;
-  vid.currentTime=val/1000;
-  document.getElementById('time'+id).textContent=fmt(val/1000);
-  if(overlayOn) setTimeout(drawOv,30);
-  if(syncMode){
-    const o=id==='A'?'B':'A';
-    const ov=document.getElementById('vid'+o);
-    if(ov.src){
-      const t2=val/1000-syncOffsets[id]+syncOffsets[o];
-      ov.currentTime=Math.max(0,Math.min(ov.duration||9999,t2));
-      document.getElementById('scrub'+o).value=Math.round(ov.currentTime*1000);
-      document.getElementById('time'+o).textContent=fmt(ov.currentTime);
-    }
-  }
-}
-function stepFrame(id,dir){
-  const vid=document.getElementById('vid'+id);
-  if(!vid.src) return;
-  vid.currentTime=Math.max(0,Math.min(vid.duration,vid.currentTime+dir*(1/30)));
-  if(overlayOn) setTimeout(drawOv,50);
-}
-function togglePlay(id){
-  const vid=document.getElementById('vid'+id);
-  if(!vid.src) return;
-  const o=id==='A'?'B':'A';
-  if(vid.paused){
-    vid.play(); document.getElementById('play'+id).textContent='⏸';
-    if(syncMode){const ov=document.getElementById('vid'+o);if(ov.src){ov.play();document.getElementById('play'+o).textContent='⏸';}}
-  } else {
-    vid.pause(); document.getElementById('play'+id).textContent='▶';
-    if(syncMode){const ov=document.getElementById('vid'+o);if(ov.src){ov.pause();document.getElementById('play'+o).textContent='▶';}}
-  }
-}
+        const pct = Math.min(100, (t / duration) * 100);
+        progressFill.style.width = pct + '%';
+        progressStatus.textContent = `Captured ${frameCount} frames (${t.toFixed(3)}s)...`;
+      }
 
-/* ── sync ── */
-function setSyncPt(id){syncOffsets[id]=document.getElementById('vid'+id).currentTime;syncSet[id]=true;updateSyncBar();}
-function resetSync(){syncOffsets={A:0,B:0};syncSet={A:false,B:false};updateSyncBar();}
-function updateSyncBar(){
-  const el=document.getElementById('syncStatus');
-  if(!syncSet.A&&!syncSet.B) el.textContent=syncMode?'Sync on — set A & B points':'Sync off';
-  else el.textContent=`A @ ${fmt(syncOffsets.A)}  •  B @ ${fmt(syncOffsets.B)}`;
-}
-
-/* ── overlay ── */
-function toggleOverlay(on){
-  overlayOn=on;
-  const oc=document.getElementById('ovCanvas');
-  oc.style.display=on?'block':'none';
-  if(on){resizeOv();setTimeout(drawOv,50);}
-}
-function resizeOv(){
-  const w=document.getElementById('wrapB'),oc=document.getElementById('ovCanvas');
-  oc.width=w.clientWidth;oc.height=w.clientHeight;
-}
-function drawOv(){
-  const oc=document.getElementById('ovCanvas');
-  const ctx=oc.getContext('2d');
-  const va=document.getElementById('vidA');
-  if(!va.src||va.readyState<2) return;
-  ctx.clearRect(0,0,oc.width,oc.height);
-  // Compute the letterboxed rect that object-fit:contain produces
-  const cw=oc.width, ch=oc.height;
-  const vw=va.videoWidth||cw, vh=va.videoHeight||ch;
-  const scale=Math.min(cw/vw, ch/vh);
-  const rw=vw*scale, rh=vh*scale;
-  const rx=(cw-rw)/2, ry=(ch-rh)/2;
-  ctx.globalAlpha=overlayOp;
-  ctx.drawImage(va, rx, ry, rw, rh);
-  ctx.globalAlpha=1;
-}
-function setOverlayOp(v){overlayOp=v/100;document.getElementById('opVal').textContent=v+'%';if(overlayOn)drawOv();}
-
-/* ── zoom ── */
-function applyTransform(id){
-  const z=Z[id];
-  const wrap=document.getElementById('wrap'+id);
-  const vid=document.getElementById('vid'+id);
-  const W=wrap.clientWidth, H=wrap.clientHeight;
-  // clamp pan
-  const maxOx=W*(z.scale-1), maxOy=H*(z.scale-1);
-  z.ox=Math.max(-maxOx,Math.min(0,z.ox));
-  z.oy=Math.max(-maxOy,Math.min(0,z.oy));
-  vid.style.transformOrigin='0 0';
-  vid.style.transform=`translate(${z.ox}px,${z.oy}px) scale(${z.scale})`;
-  vid.style.width=W+'px'; vid.style.height=H+'px';
-  redraw(id);
-  const pill=document.getElementById('zp'+id);
-  const zr=document.getElementById('zr'+id);
-  const zoomed=z.scale>1.05;
-  pill.textContent=z.scale.toFixed(1)+'×';
-  pill.classList.toggle('show',zoomed);
-  zr.style.display=zoomed?'block':'none';
-}
-function resetZoom(id){const z=Z[id];z.scale=1;z.ox=0;z.oy=0;applyTransform(id);}
-
-function ptDist(t){return Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);}
-function ptMid(t,r){return{x:(t[0].clientX+t[1].clientX)/2-r.left, y:(t[0].clientY+t[1].clientY)/2-r.top};}
-
-/* ── canvas setup ── */
-function resizeCanvas(id){
-  const wrap=document.getElementById('wrap'+id);
-  const c=document.getElementById('canvas'+id);
-  const vid=document.getElementById('vid'+id);
-  c.width=wrap.clientWidth; c.height=wrap.clientHeight;
-  vid.style.width=wrap.clientWidth+'px'; vid.style.height=wrap.clientHeight+'px';
-  redraw(id);
-}
-
-function wrapCoords(id,clientX,clientY){
-  const wrap=document.getElementById('wrap'+id);
-  const r=wrap.getBoundingClientRect();
-  const z=Z[id];
-  return [(clientX-r.left-z.ox)/z.scale, (clientY-r.top-z.oy)/z.scale];
-}
-
-function setupPanel(id){
-  const wrap=document.getElementById('wrap'+id);
-
-  /* wheel zoom (desktop) */
-  wrap.addEventListener('wheel',e=>{
-    e.preventDefault();
-    const z=Z[id];
-    const r=wrap.getBoundingClientRect();
-    const mx=e.clientX-r.left, my=e.clientY-r.top;
-    const factor=e.deltaY<0?1.12:0.89;
-    const ns=Math.max(1,Math.min(8,z.scale*factor));
-    z.ox=mx-(mx-z.ox)*(ns/z.scale);
-    z.oy=my-(my-z.oy)*(ns/z.scale);
-    z.scale=ns;
-    applyTransform(id);
-  },{passive:false});
-
-  /* touch */
-  wrap.addEventListener('touchstart',e=>{
-    if(e.touches.length===2){
-      e.preventDefault();
-      const z=Z[id];
-      z.pinching=true; z.panning=false; drawing=false;
-      z.lastD=ptDist(e.touches);
-      const r=wrap.getBoundingClientRect();
-      const m=ptMid(e.touches,r);
-      z.lastMX=m.x; z.lastMY=m.y;
-    } else if(e.touches.length===1){
-      const z=Z[id];
-      if(z.pinching) return;
-      const r=wrap.getBoundingClientRect();
-      z.pStartX=e.touches[0].clientX-r.left;
-      z.pStartY=e.touches[0].clientY-r.top;
-      z.pOX=z.ox; z.pOY=z.oy;
-      z._mv=false;
-      // start draw tentatively
-      const [x,y]=wrapCoords(id,e.touches[0].clientX,e.touches[0].clientY);
-      _sdCoords(id,x,y);
-    }
-  },{passive:false});
-
-  wrap.addEventListener('touchmove',e=>{
-    e.preventDefault();
-    const z=Z[id];
-    if(e.touches.length===2){
-      const r=wrap.getBoundingClientRect();
-      const nd=ptDist(e.touches);
-      const m=ptMid(e.touches,r);
-      const sf=nd/z.lastD;
-      const ns=Math.max(1,Math.min(8,z.scale*sf));
-      z.ox=m.x-(m.x-z.ox)*(ns/z.scale)+(m.x-z.lastMX);
-      z.oy=m.y-(m.y-z.oy)*(ns/z.scale)+(m.y-z.lastMY);
-      z.scale=ns; z.lastD=nd; z.lastMX=m.x; z.lastMY=m.y;
-      applyTransform(id);
-      drawing=false;
-    } else if(e.touches.length===1&&!z.pinching){
-      const r=wrap.getBoundingClientRect();
-      const tx=e.touches[0].clientX-r.left;
-      const ty=e.touches[0].clientY-r.top;
-      const dx=tx-z.pStartX, dy=ty-z.pStartY;
-      if(!z._mv&&Math.hypot(dx,dy)>8) z._mv=true;
-      if(z.scale>1.05&&z._mv){
-        // pan
-        z.panning=true; drawing=false;
-        z.ox=z.pOX+dx; z.oy=z.pOY+dy;
-        applyTransform(id);
-      } else if(!z.panning){
-        const [x,y]=wrapCoords(id,e.touches[0].clientX,e.touches[0].clientY);
-        _smCoords(id,x,y);
+      if (t < duration && frameCount < maxFrames && !video.ended) {
+        video.requestVideoFrameCallback(processFrame);
+      } else {
+        finishExtraction(resolve);
       }
     }
-  },{passive:false});
 
-  wrap.addEventListener('touchend',e=>{
-    const z=Z[id];
-    if(e.touches.length<2) z.pinching=false;
-    if(e.touches.length===0){
-      if(!z.panning){
-        const ct=e.changedTouches[0];
-        const [x,y]=wrapCoords(id,ct.clientX,ct.clientY);
-        _edCoords(id,x,y);
-      }
-      z.panning=false;
-    }
-  },{passive:false});
-
-  /* mouse (desktop) */
-  const c=document.getElementById('canvas'+id);
-  c.addEventListener('mousedown',e=>{
-    const z=Z[id];
-    const [x,y]=wrapCoords(id,e.clientX,e.clientY);
-    if(z.scale>1.05){
-      z.panning=true; z.pStartX=e.clientX; z.pStartY=e.clientY; z.pOX=z.ox; z.pOY=z.oy;
-      wrap.style.cursor='grabbing';
-    } else { _sdCoords(id,x,y); }
+    video.currentTime = 0;
+    video.playbackRate = 16; // fast forward to capture quickly
+    video.muted = true;
+    video.play();
+    video.requestVideoFrameCallback(processFrame);
   });
-  c.addEventListener('mousemove',e=>{
-    const z=Z[id];
-    if(z.panning){
-      z.ox=z.pOX+(e.clientX-z.pStartX); z.oy=z.pOY+(e.clientY-z.pStartY);
-      applyTransform(id);
+}
+
+function finishExtraction(resolve) {
+  video.pause();
+  video.playbackRate = 1;
+
+  // Calculate actual FPS from timestamps
+  if (frames.length > 1) {
+    const totalTime = frames[frames.length - 1].time - frames[0].time;
+    const calcFPS = (frames.length - 1) / totalTime;
+    videoFPS = Math.round(calcFPS);
+    if (videoFPS < 10) videoFPS = 240; // fallback
+  }
+
+  progressStatus.textContent = `Analyzing ${frames.length} frames at ~${videoFPS}fps...`;
+  progressFill.style.width = '100%';
+
+  setTimeout(() => {
+    analyzeBall();
+    showAnalysis();
+    resolve();
+  }, 100);
+}
+
+// ─── Ball Detection ───────────────────────────────────────────────────────────
+function detectBallInFrame(imgData) {
+  const w = imgData.width, h = imgData.height;
+  const d = imgData.data;
+
+  // Find white blobs (golf ball) using brightness threshold
+  // White ball: R>200, G>200, B>200, high brightness
+  let regions = [];
+  const visited = new Uint8Array(w * h);
+  const threshold = 210;
+
+  for (let y = 2; y < h - 2; y += 2) {
+    for (let x = 2; x < w - 2; x += 2) {
+      const idx = (y * w + x) * 4;
+      if (!visited[y * w + x] &&
+          d[idx] > threshold && d[idx+1] > threshold && d[idx+2] > threshold) {
+        // BFS flood fill
+        const blob = floodFill(d, w, h, x, y, threshold, visited);
+        if (blob.count > 30 && blob.count < 8000) {
+          const bw = blob.maxX - blob.minX;
+          const bh = blob.maxY - blob.minY;
+          const aspect = bw > 0 && bh > 0 ? Math.min(bw, bh) / Math.max(bw, bh) : 0;
+          if (aspect > 0.4) { // roughly circular
+            regions.push({
+              cx: (blob.minX + blob.maxX) / 2,
+              cy: (blob.minY + blob.maxY) / 2,
+              r: (Math.max(bw, bh)) / 2,
+              count: blob.count,
+              aspect
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (regions.length === 0) return null;
+
+  // Return the most circular, reasonably sized region
+  regions.sort((a, b) => b.aspect - a.aspect);
+  return regions[0];
+}
+
+function floodFill(d, w, h, sx, sy, threshold, visited) {
+  const stack = [[sx, sy]];
+  let minX = sx, maxX = sx, minY = sy, maxY = sy, count = 0;
+  while (stack.length > 0 && count < 3000) {
+    const [x, y] = stack.pop();
+    if (x < 0 || x >= w || y < 0 || y >= h) continue;
+    const i = y * w + x;
+    if (visited[i]) continue;
+    const idx = i * 4;
+    if (d[idx] < threshold || d[idx+1] < threshold || d[idx+2] < threshold) continue;
+    visited[i] = 1;
+    count++;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    stack.push([x+2, y], [x-2, y], [x, y+2], [x, y-2]);
+  }
+  return { minX, maxX, minY, maxY, count };
+}
+
+// ─── Dot Detection (3 dark dots on white ball) ────────────────────────────────
+function detectDots(imgData, cx, cy, r) {
+  const w = imgData.width;
+  const d = imgData.data;
+  const dots = [];
+  const search = Math.ceil(r * 0.95);
+
+  // Look for dark pixels within ball region
+  for (let y = Math.max(0, Math.floor(cy - search)); y <= Math.min(imgData.height-1, Math.ceil(cy + search)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - search)); x <= Math.min(w-1, Math.ceil(cx + search)); x++) {
+      const dx = x - cx, dy = y - cy;
+      if (dx*dx + dy*dy > search*search) continue;
+      const idx = (y * w + x) * 4;
+      const brightness = (d[idx] + d[idx+1] + d[idx+2]) / 3;
+      if (brightness < 80) { // dark dot
+        dots.push({ x, y, brightness });
+      }
+    }
+  }
+
+  if (dots.length < 5) return null;
+
+  // Cluster dots into 3 groups
+  const clusters = clusterDots(dots, 3, r * 0.3);
+  if (clusters.length < 2) return null;
+
+  // Calculate centroid angle of cluster triangle
+  const angle = clusterAngle(clusters);
+  return { clusters, angle };
+}
+
+function clusterDots(dots, k, maxDist) {
+  if (dots.length === 0) return [];
+  // Simple k-means-lite
+  let centers = dots.slice(0, Math.min(k, dots.length)).map(d => ({ x: d.x, y: d.y, pts: [] }));
+  for (let iter = 0; iter < 5; iter++) {
+    centers.forEach(c => c.pts = []);
+    dots.forEach(dot => {
+      let best = 0, bestD = Infinity;
+      centers.forEach((c, i) => {
+        const d = Math.hypot(dot.x - c.x, dot.y - c.y);
+        if (d < bestD) { bestD = d; best = i; }
+      });
+      if (bestD < maxDist) centers[best].pts.push(dot);
+    });
+    centers = centers.filter(c => c.pts.length > 0).map(c => ({
+      x: c.pts.reduce((s, p) => s + p.x, 0) / c.pts.length,
+      y: c.pts.reduce((s, p) => s + p.y, 0) / c.pts.length,
+      pts: c.pts
+    }));
+  }
+  return centers;
+}
+
+function clusterAngle(clusters) {
+  if (clusters.length < 2) return 0;
+  // Use first two clusters to get an angle
+  return Math.atan2(clusters[1].y - clusters[0].y, clusters[1].x - clusters[0].x);
+}
+
+// ─── Full Analysis ────────────────────────────────────────────────────────────
+function analyzeBall() {
+  const trackedFrames = [];
+  let maxR = 0;
+
+  // Step 1: detect ball in each frame
+  frames.forEach((f, i) => {
+    const ball = detectBallInFrame(f.imageData);
+    if (ball) {
+      f.ballX = ball.cx;
+      f.ballY = ball.cy;
+      f.ballR = ball.r;
+      if (ball.r > maxR) maxR = ball.r;
+      trackedFrames.push(i);
+
+      // Dot detection
+      const dotResult = detectDots(f.imageData, ball.cx, ball.cy, ball.r);
+      f.dotAngle = dotResult ? dotResult.angle : null;
+    }
+
+    if (i % 20 === 0) {
+      progressStatus.textContent = `Detecting ball... frame ${i}/${frames.length}`;
+    }
+  });
+
+  ballDiameterPx = maxR * 2;
+  document.getElementById('ball-diameter-px').textContent = ballDiameterPx.toFixed(1);
+
+  // Pixels-per-inch
+  const pxPerInch = ballDiameterPx / GOLF_BALL_INCHES;
+  const pxPerFoot = pxPerInch * 12;
+
+  // Step 2: calculate speeds
+  const speeds = []; // mph per frame
+  const spinRPMs = [];
+  const bounces = [];
+
+  for (let i = 1; i < frames.length; i++) {
+    const prev = frames[i-1], curr = frames[i];
+    if (prev.ballX < 0 || curr.ballX < 0) { speeds.push(null); spinRPMs.push(null); continue; }
+
+    const dt = curr.time - prev.time;
+    if (dt <= 0) { speeds.push(null); spinRPMs.push(null); continue; }
+
+    const dpx = Math.hypot(curr.ballX - prev.ballX, curr.ballY - prev.ballY);
+    const speedFtPerSec = (dpx / pxPerFoot) / dt;
+    const speedMph = speedFtPerSec * 0.681818;
+    speeds.push(speedMph > 0.1 ? speedMph : 0);
+
+    // Spin from dot angle delta
+    if (prev.dotAngle !== null && curr.dotAngle !== null) {
+      let dAngle = curr.dotAngle - prev.dotAngle;
+      // Normalize to -PI..PI
+      while (dAngle > Math.PI) dAngle -= 2 * Math.PI;
+      while (dAngle < -Math.PI) dAngle += 2 * Math.PI;
+      const rotPerSec = dAngle / dt; // radians/sec
+      const rpm = (rotPerSec / (2 * Math.PI)) * 60;
+      spinRPMs.push(Math.abs(rpm) < 5000 ? rpm : null);
     } else {
-      const [x,y]=wrapCoords(id,e.clientX,e.clientY);
-      _smCoords(id,x,y);
+      spinRPMs.push(null);
     }
-  });
-  c.addEventListener('mouseup',e=>{
-    const z=Z[id];
-    if(z.panning){z.panning=false;wrap.style.cursor='';}
-    else{const[x,y]=wrapCoords(id,e.clientX,e.clientY);_edCoords(id,x,y);}
-  });
-  c.addEventListener('mouseleave',e=>{
-    const z=Z[id];
-    if(z.panning){z.panning=false;wrap.style.cursor='';}
-    else{const[x,y]=wrapCoords(id,e.clientX,e.clientY);_edCoords(id,x,y);}
-  });
-}
 
-/* ── draw logic ── */
-function _sdCoords(id,x,y){
-  if(!tool) return;
-  drawing=true; activeId=id; startX=x; startY=y;
-  if(tool==='free') freePts=[[x,y]];
-  if(tool==='angle'){
-    const last=drawings[id][drawings[id].length-1];
-    if(last&&last.tool==='angle'&&!last.done){
-      last.pts.push([x,y]);
-      if(last.pts.length>=3) last.done=true;
-      redraw(id); drawing=false; return;
-    }
-    drawings[id].push({tool:'angle',pts:[[x,y]],color:strokeColor,w:strokeW,done:false});
-  }
-}
-function _smCoords(id,x,y){
-  if(!drawing||activeId!==id) return;
-  redrawWithPreview(id,x,y);
-}
-function _edCoords(id,x,y){
-  if(!drawing||activeId!==id) return;
-  drawing=false;
-  if(tool==='line') drawings[id].push({tool:'line',x1:startX,y1:startY,x2:x,y2:y,color:strokeColor,w:strokeW});
-  else if(tool==='circle') drawings[id].push({tool:'circle',cx:startX,cy:startY,r:Math.hypot(x-startX,y-startY),color:strokeColor,w:strokeW});
-  else if(tool==='free'){if(freePts.length>1) drawings[id].push({tool:'free',pts:[...freePts],color:strokeColor,w:strokeW});}
-  redraw(id);
-}
-
-function redrawWithPreview(id,px,py){
-  const c=document.getElementById('canvas'+id);
-  const ctx=c.getContext('2d');
-  const z=Z[id];
-  ctx.clearRect(0,0,c.width,c.height);
-  ctx.save(); ctx.setTransform(z.scale,0,0,z.scale,z.ox,z.oy);
-  _drawShapes(ctx,id);
-  ctx.strokeStyle=strokeColor; ctx.lineWidth=strokeW; ctx.lineCap='round'; ctx.lineJoin='round';
-  if(tool==='line'){ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(px,py);ctx.stroke();}
-  else if(tool==='circle'){ctx.beginPath();ctx.arc(startX,startY,Math.hypot(px-startX,py-startY),0,Math.PI*2);ctx.stroke();}
-  else if(tool==='free'){freePts.push([px,py]);ctx.beginPath();ctx.moveTo(freePts[0][0],freePts[0][1]);freePts.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.stroke();}
-  else if(tool==='angle'){
-    const last=drawings[id][drawings[id].length-1];
-    if(last&&!last.done){ctx.beginPath();ctx.moveTo(last.pts[0][0],last.pts[0][1]);ctx.lineTo(px,py);ctx.stroke();}
-  }
-  ctx.restore();
-}
-
-function redraw(id){
-  const c=document.getElementById('canvas'+id);
-  const ctx=c.getContext('2d');
-  const z=Z[id];
-  ctx.clearRect(0,0,c.width,c.height);
-  ctx.save(); ctx.setTransform(z.scale,0,0,z.scale,z.ox,z.oy);
-  _drawShapes(ctx,id);
-  ctx.restore();
-}
-
-function _drawShapes(ctx,id){
-  drawings[id].forEach(d=>{
-    ctx.strokeStyle=d.color; ctx.lineWidth=d.w; ctx.lineCap='round'; ctx.lineJoin='round';
-    if(d.tool==='line'){
-      ctx.beginPath();ctx.moveTo(d.x1,d.y1);ctx.lineTo(d.x2,d.y2);ctx.stroke();
-    } else if(d.tool==='circle'){
-      ctx.beginPath();ctx.arc(d.cx,d.cy,d.r,0,Math.PI*2);ctx.stroke();
-    } else if(d.tool==='free'){
-      if(!d.pts.length) return;
-      ctx.beginPath();ctx.moveTo(d.pts[0][0],d.pts[0][1]);d.pts.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.stroke();
-    } else if(d.tool==='angle'){
-      if(d.pts.length>=2){ctx.beginPath();ctx.moveTo(d.pts[0][0],d.pts[0][1]);ctx.lineTo(d.pts[1][0],d.pts[1][1]);ctx.stroke();}
-      if(d.pts.length>=3){
-        ctx.beginPath();ctx.moveTo(d.pts[1][0],d.pts[1][1]);ctx.lineTo(d.pts[2][0],d.pts[2][1]);ctx.stroke();
-        const ang=_ang(d.pts[0],d.pts[1],d.pts[2]);
-        const fs=Math.max(13,d.w*4);
-        ctx.font=`600 ${fs}px -apple-system,sans-serif`;
-        ctx.shadowColor='rgba(0,0,0,0.85)';ctx.shadowBlur=4;
-        ctx.fillStyle=d.color;
-        ctx.fillText(ang+'°',d.pts[1][0]+8,d.pts[1][1]-8);
-        ctx.shadowBlur=0;
+    // Bounce: upward then downward Y movement (Y increases downward)
+    if (i >= 2) {
+      const prev2 = frames[i-2];
+      if (prev2.ballY >= 0 && prev.ballY >= 0 && curr.ballY >= 0) {
+        const dy1 = prev.ballY - prev2.ballY; // negative = moving up
+        const dy2 = curr.ballY - prev.ballY;  // positive = moving down
+        if (dy1 < -2 && dy2 > 2) {
+          bounces.push({ frameIdx: i-1, time: prev.time });
+        }
       }
     }
+  }
+
+  // Step 3: Find launch speed (first valid speed)
+  let launchSpeed = null;
+  for (let i = 0; i < speeds.length; i++) {
+    if (speeds[i] !== null && speeds[i] > 0.2) {
+      launchSpeed = speeds[i];
+      break;
+    }
+  }
+
+  // Step 4: Skid detection — when spin RPM becomes proportional to speed
+  // Skid = ball spinning less than expected for its speed (or backspin from impact)
+  let skidEndFrame = null;
+  const validSpins = spinRPMs.filter(s => s !== null);
+  if (validSpins.length > 5) {
+    // find first frame where spin stabilizes to consistent topspin
+    for (let i = 5; i < spinRPMs.length; i++) {
+      const recent = spinRPMs.slice(Math.max(0, i-5), i).filter(s => s !== null);
+      if (recent.length >= 3 && recent.every(s => s > 0)) {
+        skidEndFrame = i;
+        break;
+      }
+    }
+  }
+
+  // Step 5: Roll quality — consistency of speed in last quarter of tracked frames
+  const lastQuarter = speeds.slice(Math.floor(speeds.length * 0.75)).filter(s => s !== null);
+  let rollQuality = '—';
+  if (lastQuarter.length > 3) {
+    const mean = lastQuarter.reduce((a,b) => a+b, 0) / lastQuarter.length;
+    const variance = lastQuarter.reduce((a,b) => a + Math.pow(b-mean,2), 0) / lastQuarter.length;
+    const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
+    rollQuality = cv < 0.1 ? 'SMOOTH' : cv < 0.25 ? 'GOOD' : 'ROUGH';
+  }
+
+  // Peak spin
+  const validSpinVals = spinRPMs.filter(s => s !== null);
+  const peakSpin = validSpinVals.length > 0 ? Math.max(...validSpinVals.map(Math.abs)) : null;
+
+  analysisResults = { speeds, spinRPMs, bounces, launchSpeed, skidEndFrame, rollQuality, peakSpin, trackedFrames, pxPerInch };
+
+  // Update UI
+  updateMetrics(trackedFrames.length, peakSpin, bounces.length, skidEndFrame, rollQuality, launchSpeed);
+  drawSpeedChart(speeds);
+  drawSpinChart(spinRPMs);
+  drawEventTimeline(bounces, skidEndFrame);
+}
+
+function updateMetrics(tracked, peakSpin, bounceCount, skidFrame, rollQuality, launchSpeed) {
+  document.getElementById('m-speed').textContent = launchSpeed ? launchSpeed.toFixed(1) : '—';
+  document.getElementById('m-speed').className = 'metric-value' + (launchSpeed ? '' : '');
+  document.getElementById('m-spin').textContent = peakSpin ? Math.round(peakSpin) : '—';
+  document.getElementById('m-bounces').textContent = bounceCount;
+  document.getElementById('m-bounces').className = 'metric-value' + (bounceCount > 0 ? ' red' : ' green');
+  document.getElementById('m-skid').textContent = skidFrame !== null ? skidFrame : '—';
+  document.getElementById('m-frames').textContent = frames.length;
+  document.getElementById('m-fps').textContent = videoFPS;
+  document.getElementById('m-tracked').textContent = tracked;
+  document.getElementById('m-roll').textContent = rollQuality;
+  document.getElementById('m-roll').className = 'metric-value' + (rollQuality === 'SMOOTH' ? ' green' : rollQuality === 'ROUGH' ? ' red' : '');
+
+  if (tracked < frames.length * 0.1) {
+    document.getElementById('no-ball-warning').style.display = 'block';
+  }
+}
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+function drawChart(canvasId, data, color, label, yMax) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 600;
+  canvas.height = 120;
+  const w = canvas.width, h = canvas.height;
+  const pad = { top: 10, right: 10, bottom: 20, left: 40 };
+  const cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#111811';
+  ctx.fillRect(0, 0, w, h);
+
+  const valid = data.filter(d => d !== null);
+  if (valid.length === 0) {
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '11px DM Mono';
+    ctx.fillText('No data detected', pad.left + 10, h / 2);
+    return;
+  }
+
+  const max = yMax || Math.max(...valid.map(Math.abs)) * 1.1 || 1;
+
+  // Grid lines
+  ctx.strokeStyle = '#1e2d1e';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch * i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '9px DM Mono';
+    ctx.fillText(((max * (4 - i) / 4)).toFixed(0), 2, y + 3);
+  }
+
+  // Zero line (for spin)
+  if (data.some(d => d !== null && d < 0)) {
+    const zy = pad.top + ch * 0.5;
+    ctx.strokeStyle = '#2d5a27';
+    ctx.beginPath(); ctx.moveTo(pad.left, zy); ctx.lineTo(pad.left + cw, zy); ctx.stroke();
+  }
+
+  // Data line
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let first = true;
+  data.forEach((val, i) => {
+    if (val === null) { first = true; return; }
+    const x = pad.left + (i / (data.length - 1)) * cw;
+    const absVal = Math.abs(val);
+    const y = pad.top + ch - (absVal / max) * ch;
+    if (first) { ctx.moveTo(x, y); first = false; }
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.globalAlpha = 0.1;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  let fx = pad.left, fy = pad.top + ch;
+  data.forEach((val, i) => {
+    if (val === null) return;
+    const x = pad.left + (i / (data.length - 1)) * cw;
+    const absVal = Math.abs(val);
+    const y = pad.top + ch - (absVal / max) * ch;
+    if (fx === pad.left) { ctx.moveTo(x, pad.top + ch); fx = x; }
+    ctx.lineTo(x, y);
+    fy = x;
+  });
+  ctx.lineTo(fy, pad.top + ch);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawSpeedChart(speeds) { drawChart('speed-chart', speeds, '#c9a84c', 'mph'); }
+function drawSpinChart(spinRPMs) { drawChart('spin-chart', spinRPMs, '#4caf50', 'rpm', 3000); }
+
+// ─── Event timeline ───────────────────────────────────────────────────────────
+function drawEventTimeline(bounces, skidFrame) {
+  const list = document.getElementById('events-list');
+  list.innerHTML = '';
+  const events = [];
+
+  events.push({ type: 'impact', time: frames[0]?.time || 0, desc: 'Ball impact detected — tracking begins' });
+
+  if (skidFrame !== null) {
+    const t = frames[skidFrame]?.time || 0;
+    events.push({ type: 'roll', time: t, desc: `Skid ends — true topspin roll begins (frame ${skidFrame})` });
+  }
+
+  bounces.forEach((b, i) => {
+    events.push({ type: 'bounce', time: b.time, desc: `Bounce #${i+1} detected (frame ${b.frameIdx})` });
+  });
+
+  events.sort((a, b) => a.time - b.time);
+
+  if (events.length === 0) {
+    list.innerHTML = '<div style="color:#7a8f7a;font-size:0.72rem;padding:12px 0;">No events detected — ensure ball is visible in video</div>';
+    return;
+  }
+
+  events.forEach(ev => {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.innerHTML = `
+      <div class="event-dot ${ev.type}"></div>
+      <div class="event-time">${ev.time.toFixed(3)}s</div>
+      <div class="event-desc">${ev.desc}</div>
+    `;
+    list.appendChild(row);
   });
 }
 
-function _arrow(ctx,x1,y1,x2,y2,color,w){
-  const a=Math.atan2(y2-y1,x2-x1),s=6+w*2;
-  ctx.fillStyle=color;
-  ctx.beginPath();ctx.moveTo(x2,y2);
-  ctx.lineTo(x2-s*Math.cos(a-0.42),y2-s*Math.sin(a-0.42));
-  ctx.lineTo(x2-s*Math.cos(a+0.42),y2-s*Math.sin(a+0.42));
-  ctx.closePath();ctx.fill();
+// ─── Overlay drawing ──────────────────────────────────────────────────────────
+function drawOverlay(frameIdx) {
+  const f = frames[frameIdx];
+  if (!f) return;
+
+  overlayCanvas.width = overlayCanvas.offsetWidth;
+  overlayCanvas.height = overlayCanvas.offsetHeight;
+  const sx = overlayCanvas.width / procCanvas.width;
+  const sy = overlayCanvas.height / procCanvas.height;
+
+  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+  if (f.ballX >= 0) {
+    const cx = f.ballX * sx, cy = f.ballY * sy, r = f.ballR * Math.min(sx, sy);
+
+    // Ball circle
+    overlayCtx.strokeStyle = '#c9a84c';
+    overlayCtx.lineWidth = 2;
+    overlayCtx.beginPath();
+    overlayCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    overlayCtx.stroke();
+
+    // Crosshair
+    overlayCtx.strokeStyle = 'rgba(201,168,76,0.5)';
+    overlayCtx.lineWidth = 1;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(cx - r * 1.4, cy); overlayCtx.lineTo(cx + r * 1.4, cy);
+    overlayCtx.moveTo(cx, cy - r * 1.4); overlayCtx.lineTo(cx, cy + r * 1.4);
+    overlayCtx.stroke();
+
+    // Dot angle indicator
+    if (f.dotAngle !== null) {
+      overlayCtx.strokeStyle = '#4caf50';
+      overlayCtx.lineWidth = 2;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(cx, cy);
+      overlayCtx.lineTo(cx + Math.cos(f.dotAngle) * r * 0.8, cy + Math.sin(f.dotAngle) * r * 0.8);
+      overlayCtx.stroke();
+    }
+
+    // Speed label
+    const spd = analysisResults?.speeds[frameIdx];
+    if (spd !== null && spd !== undefined) {
+      overlayCtx.fillStyle = '#c9a84c';
+      overlayCtx.font = `${Math.max(10, r * 0.5)}px DM Mono`;
+      overlayCtx.fillText(`${spd.toFixed(1)} mph`, cx + r + 4, cy - 4);
+    }
+  }
+
+  // Bounce indicator
+  const isBounce = analysisResults?.bounces.some(b => Math.abs(b.frameIdx - frameIdx) < 3);
+  if (isBounce) {
+    overlayCtx.fillStyle = 'rgba(214,68,68,0.8)';
+    overlayCtx.font = '13px DM Mono';
+    overlayCtx.fillText('⚡ BOUNCE', 12, 24);
+  }
+
+  // Frame info
+  overlayCtx.fillStyle = 'rgba(201,168,76,0.7)';
+  overlayCtx.font = '10px DM Mono';
+  overlayCtx.fillText(`F${frameIdx} | ${(f.time * 1000).toFixed(1)}ms`, 8, overlayCanvas.height - 8);
 }
-function _ang(p0,p1,p2){
-  const a=Math.atan2(p0[1]-p1[1],p0[0]-p1[0]);
-  const b=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
-  let d=Math.abs((b-a)*180/Math.PI);
-  if(d>180) d=360-d;
-  return Math.round(d);
+
+// ─── Show analysis section ───────────────────────────────────────────────────
+function showAnalysis() {
+  progressSection.style.display = 'none';
+  analysisSection.style.display = 'block';
+
+  scrubber.max = frames.length - 1;
+  scrubber.value = 0;
+  showFrame(0);
+
+  // Set video for scrubbing
+  video.pause();
 }
 
-function undoLast(){['A','B'].forEach(id=>{drawings[id].pop();redraw(id);});}
-function clearAll(){drawings={A:[],B:[]};redraw('A');redraw('B');}
+function showFrame(idx) {
+  currentFrame = idx;
+  frameLabel.textContent = `Frame ${idx} / ${frames.length - 1}`;
+  scrubber.value = idx;
 
-function fmt(t){
-  if(isNaN(t)||t<0) return '0:00.000';
-  const m=Math.floor(t/60),s=Math.floor(t%60),ms=Math.floor((t%1)*1000);
-  return `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+  // Draw frame to overlay canvas via video seek
+  if (frames[idx]) {
+    video.currentTime = frames[idx].time;
+  }
+
+  drawOverlay(idx);
 }
 
-/* ── init ── */
-setupPanel('A');
-setupPanel('B');
-document.body.classList.add('single-panel');
+video.addEventListener('seeked', () => { /* overlay already drawn */ });
 
-window.addEventListener('resize',()=>{
-  ['A','B'].forEach(id=>{
-    const vid=document.getElementById('vid'+id);
-    if(vid.src){resizeCanvas(id);applyTransform(id);}
-  });
-  if(overlayOn) resizeOv();
+scrubber.addEventListener('input', () => { showFrame(parseInt(scrubber.value)); });
+
+// ─── Playback controls ────────────────────────────────────────────────────────
+document.getElementById('btn-prev').addEventListener('click', () => {
+  stopPlay(); showFrame(Math.max(0, currentFrame - 1));
 });
-document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
+document.getElementById('btn-next').addEventListener('click', () => {
+  stopPlay(); showFrame(Math.min(frames.length - 1, currentFrame + 1));
+});
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (playInterval) { stopPlay(); return; }
+  document.getElementById('btn-play').textContent = '⏸ Pause';
+  const msPerFrame = 1000 / (videoFPS * playSpeed);
+  playInterval = setInterval(() => {
+    if (currentFrame >= frames.length - 1) { stopPlay(); return; }
+    showFrame(currentFrame + 1);
+  }, Math.max(16, msPerFrame));
+});
+
+function stopPlay() {
+  if (playInterval) { clearInterval(playInterval); playInterval = null; }
+  document.getElementById('btn-play').textContent = '▶ Play';
+}
+
+['025x','05x','1x'].forEach(id => {
+  document.getElementById(`btn-${id}`).addEventListener('click', () => {
+    ['025x','05x','1x'].forEach(i => document.getElementById(`btn-${i}`).classList.remove('active'));
+    document.getElementById(`btn-${id}`).classList.add('active');
+    playSpeed = id === '025x' ? 0.25 : id === '05x' ? 0.5 : 1.0;
+    if (playInterval) {
+      stopPlay();
+      document.getElementById('btn-play').click();
+    }
+  });
+});
+
+document.getElementById('btn-reanalyze').addEventListener('click', () => {
+  if (frames.length > 0) {
+    progressSection.style.display = 'block';
+    progressStatus.textContent = 'Re-analyzing...';
+    setTimeout(() => {
+      analyzeBall();
+      progressSection.style.display = 'none';
+      drawSpeedChart(analysisResults.speeds);
+      drawSpinChart(analysisResults.spinRPMs);
+    }, 100);
+  }
+});
+
+// Resize overlay on window resize
+window.addEventListener('resize', () => { if (frames.length > 0) drawOverlay(currentFrame); });
 </script>
 </body>
 </html>
