@@ -17,9 +17,9 @@
   header { display: flex; align-items: center; justify-content: space-between;
     padding: 0 12px; height: 52px; border-bottom: 1px solid var(--border); flex: none; }
   header h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: 1px; }
-  header .spacer { width: 90px; }
-  #new { width: 90px; background: none; color: var(--text); border: 1px solid var(--border-filled);
+  #new, #hint { width: 90px; background: none; color: var(--text); border: 1px solid var(--border-filled);
     border-radius: 4px; padding: 6px 4px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  #hint:disabled { cursor: default; color: var(--yellow); border-color: var(--yellow); }
   main { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 10px; }
   #board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px;
     height: min(420px, 100%); aspect-ratio: 5 / 6; }
@@ -61,7 +61,7 @@
 </head>
 <body>
 <header>
-  <div class="spacer"></div>
+  <button id="hint">HINT</button>
   <h1>Wordle</h1>
   <button id="new">NEW GAME</button>
 </header>
@@ -115,6 +115,7 @@ function newGame() {
   Object.values(keyEls).forEach(k => k.classList.remove('correct', 'present', 'absent'));
   toastEl.innerHTML = '';
   againBtn.classList.remove('show');
+  hintBtn.disabled = false; hintBtn.textContent = 'HINT';
 }
 
 const tile = (r, c) => boardEl.children[r].children[c];
@@ -194,6 +195,23 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Backspace') press('back');
   else if (/^[a-zA-Z]$/.test(e.key)) press(e.key.toLowerCase());
 });
+const hintBtn = document.getElementById('hint');
+function giveHint() {
+  if (over || busy || hintBtn.disabled) return;
+  // Positions not yet solved (green) in any submitted guess
+  const solved = new Set();
+  for (let r = 0; r < row; r++) for (let i = 0; i < COLS; i++) if (guesses[r][i] === answer[i]) solved.add(i);
+  const open = [...Array(COLS).keys()].filter(i => !solved.has(i));
+  if (!open.length) return;
+  // Prefer letters you haven't discovered at all (not green/yellow on the keyboard)
+  const known = l => keyEls[l].classList.contains('correct') || keyEls[l].classList.contains('present');
+  const fresh = open.filter(i => !known(answer[i]));
+  const pool = fresh.length ? fresh : open;
+  const i = pool[Math.floor(Math.random() * pool.length)], L = answer[i].toUpperCase();
+  hintBtn.disabled = true; hintBtn.textContent = '#' + (i + 1) + ' = ' + L;
+  toast('Letter ' + (i + 1) + ' is ' + L, 2500);
+}
+hintBtn.addEventListener('click', e => { e.currentTarget.blur(); giveHint(); });
 document.getElementById('new').addEventListener('click', e => { e.currentTarget.blur(); newGame(); });
 againBtn.addEventListener('click', newGame);
 
