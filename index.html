@@ -14,10 +14,18 @@
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font-family: "Helvetica Neue", Arial, sans-serif; overscroll-behavior: none; }
   body { display: flex; flex-direction: column; height: 100dvh; }
-  header { display: flex; align-items: center; justify-content: space-between;
+  header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;
     padding: 0 12px; height: 52px; border-bottom: 1px solid var(--border); flex: none; }
+  header .side { display: flex; gap: 6px; align-items: center; }
+  header .right { justify-content: flex-end; }
+  #mute { width: 30px; height: 30px; background: none; border: 1px solid var(--border-filled); border-radius: 4px;
+    color: var(--text); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #mute svg { width: 18px; height: 18px; }
+  #mute .off { display: none; }
+  #mute.muted .on { display: none; }
+  #mute.muted .off { display: inline; }
   header h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: 1px; }
-  #new, #hint { width: 90px; background: none; color: var(--text); border: 1px solid var(--border-filled);
+  #new, #hint { width: 78px; background: none; color: var(--text); border: 1px solid var(--border-filled);
     border-radius: 4px; padding: 6px 4px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   #hint:disabled { cursor: default; color: var(--yellow); border-color: var(--yellow); }
   main { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 10px; }
@@ -61,9 +69,18 @@
 </head>
 <body>
 <header>
-  <button id="hint">HINT</button>
+  <div class="side"><button id="hint">HINT</button></div>
   <h1>Wordle</h1>
-  <button id="new">NEW GAME</button>
+  <div class="side right">
+    <button id="mute" aria-label="Mute music" title="Mute music">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor"/>
+        <path class="on" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>
+        <path class="off" d="m16 9 6 6M22 9l-6 6"/>
+      </svg>
+    </button>
+    <button id="new">NEW GAME</button>
+  </div>
 </header>
 <main><div id="board"></div></main>
 <div id="keyboard"></div>
@@ -214,6 +231,107 @@ function giveHint() {
 hintBtn.addEventListener('click', e => { e.currentTarget.blur(); giveHint(); });
 document.getElementById('new').addEventListener('click', e => { e.currentTarget.blur(); newGame(); });
 againBtn.addEventListener('click', newGame);
+
+// ---- Calm background music, generated live with Web Audio (no files) ----
+const Music = (() => {
+  const CHORDS = [[48,55,64,71],[45,52,60,67],[41,48,57,64],[43,50,59,64]]; // Cmaj7 Am7 Fmaj7 G6
+  const MELODY = [72,74,76,79,81,84];                                        // C major pentatonic
+  const LEN = 8, VOL = 0.8;
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  let ctx, master, wet, timer, next = 0, step = 0, muted = false;
+  try { muted = localStorage.getItem('wordle-muted') === '1'; } catch (e) {}
+
+  function build() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    ctx = new AC();
+    master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+    // Simple generated reverb
+    const len = ctx.sampleRate * 4, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    }
+    const verb = ctx.createConvolver(); verb.buffer = ir;
+    wet = ctx.createGain(); wet.gain.value = 0.6;
+    wet.connect(verb); verb.connect(master);
+    return true;
+  }
+  function out(node) { node.connect(master); node.connect(wet); }
+
+  function pad(m, t, dur) {
+    const g = ctx.createGain(), f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 900;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 2.5);
+    g.gain.setValueAtTime(0.05, t + dur - 3);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    [['sine', 0], ['triangle', 6], ['triangle', -6]].forEach(([type, det]) => {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = hz(m); o.detune.value = det;
+      o.connect(f); o.start(t); o.stop(t + dur + 0.1);
+    });
+    f.connect(g); out(g);
+  }
+  function bell(m, t) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = hz(m);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.5);
+    o.connect(g); out(g); o.start(t); o.stop(t + 3.6);
+  }
+  function schedule() {
+    while (next < ctx.currentTime + 4) {
+      CHORDS[step % CHORDS.length].forEach(m => pad(m, next, LEN + 2.5));
+      const n = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) {
+        bell(MELODY[Math.floor(Math.random() * MELODY.length)], next + 0.5 + Math.random() * (LEN - 1.5));
+      }
+      next += LEN; step++;
+    }
+  }
+  function fade(to, secs) {
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.linearRampToValueAtTime(to, now + secs);
+  }
+  function play() {
+    if (!ctx && !build()) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    if (!timer) { next = Math.max(next, ctx.currentTime + 0.1); schedule(); timer = setInterval(schedule, 1000); }
+    fade(VOL, 2);
+  }
+  function stop() {
+    if (!ctx) return;
+    fade(0, 0.4);
+    clearInterval(timer); timer = null;
+    setTimeout(() => { if (muted || document.hidden) ctx.suspend(); }, 450);
+  }
+  return {
+    get muted() { return muted; },
+    start() { if (!muted && !document.hidden) play(); },   // call from a user gesture
+    toggle() {
+      muted = !muted;
+      try { localStorage.setItem('wordle-muted', muted ? '1' : '0'); } catch (e) {}
+      muted ? stop() : play();
+    },
+    hide() { if (ctx) stop(); },
+    show() { if (ctx && !muted) play(); },
+  };
+})();
+
+const muteBtn = document.getElementById('mute');
+function syncMute() {
+  muteBtn.classList.toggle('muted', Music.muted);
+  const label = Music.muted ? 'Play music' : 'Mute music';
+  muteBtn.setAttribute('aria-label', label); muteBtn.title = label;
+}
+syncMute();
+muteBtn.addEventListener('click', e => { e.stopPropagation(); e.currentTarget.blur(); Music.toggle(); syncMute(); });
+// Browsers only allow sound after the first tap or key press
+['click', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, () => Music.start()));
+document.addEventListener('visibilitychange', () => document.hidden ? Music.hide() : Music.show());
 
 newGame();
 </script>
